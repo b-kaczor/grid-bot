@@ -26,15 +26,16 @@ module Bybit
 
     # Market data (no auth)
 
-    def get_tickers(symbol:)
-      get('/v5/market/tickers', { category: 'spot', symbol: }, authenticated: false, bucket: :get_tickers)
+    def get_tickers(symbol: nil)
+      params = { category: 'spot' }
+      params[:symbol] = symbol if symbol
+      get('/v5/market/tickers', params, authenticated: false, bucket: :get_tickers)
     end
 
-    def get_instruments_info(symbol:)
-      get(
-        '/v5/market/instruments-info', { category: 'spot', symbol: }, authenticated: false,
-                                                                      bucket: :get_instruments_info
-      )
+    def get_instruments_info(symbol: nil)
+      params = { category: 'spot' }
+      params[:symbol] = symbol if symbol
+      get('/v5/market/instruments-info', params, authenticated: false, bucket: :get_instruments_info)
     end
 
     # Account (auth required)

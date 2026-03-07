@@ -5,11 +5,11 @@ module Exchange
     class NotImplementedError < StandardError; end
 
     # Market data (no auth required)
-    def get_tickers(symbol:)
+    def get_tickers(symbol: nil)
       raise NotImplementedError
     end
 
-    def get_instruments_info(symbol:)
+    def get_instruments_info(symbol: nil)
       raise NotImplementedError
     end
 
