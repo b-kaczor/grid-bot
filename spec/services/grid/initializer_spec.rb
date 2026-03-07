@@ -4,7 +4,7 @@ require 'rails_helper'
 
 RSpec.describe Grid::Initializer do
   let(:exchange_account) { create(:exchange_account) }
-  let(:bot) { create(:bot, exchange_account:, status: 'pending', grid_count: 4) }
+  let(:bot) { create(:bot, exchange_account:, status: 'initializing', grid_count: 4) }
   let(:client) { instance_double(Bybit::RestClient) }
   let(:redis_state) { instance_double(Grid::RedisState) }
   let(:mock_redis) { MockRedis.new }
@@ -44,8 +44,8 @@ RSpec.describe Grid::Initializer do
   subject(:initializer) { described_class.new(bot) }
 
   describe '#call' do
-    context 'with valid pending bot' do
-      it 'transitions bot from pending to running' do
+    context 'with valid initializing bot' do
+      it 'transitions bot from initializing to running' do
         initializer.call
         expect(bot.reload.status).to eq('running')
       end
@@ -138,11 +138,11 @@ RSpec.describe Grid::Initializer do
       end
     end
 
-    context 'when bot is not in pending status' do
+    context 'when bot is not in initializing status' do
       let(:bot) { create(:bot, exchange_account:, status: 'running') }
 
       it 'raises Error' do
-        expect { initializer.call }.to raise_error(described_class::Error, /pending/)
+        expect { initializer.call }.to raise_error(described_class::Error, /initializing/)
       end
     end
 
@@ -217,7 +217,7 @@ RSpec.describe Grid::Initializer do
     end
 
     context 'when quantity_per_level is below min_order_qty' do
-      let(:bot) { create(:bot, exchange_account:, status: 'pending', grid_count: 4, investment_amount: 0.01) }
+      let(:bot) { create(:bot, exchange_account:, status: 'initializing', grid_count: 4, investment_amount: 0.01) }
 
       before do
         allow(client).to receive(:get_instruments_info).and_return(

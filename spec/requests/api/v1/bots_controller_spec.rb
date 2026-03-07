@@ -77,16 +77,14 @@ RSpec.describe 'Api::V1::Bots', type: :request do
 
     before do
       exchange_account
-      allow(BotInitializerJob).to receive(:perform_async)
     end
 
-    it 'creates a bot and enqueues initializer job' do
+    it 'creates a bot in pending status without auto-starting' do
       post '/api/v1/bots', params: valid_params
       expect(response).to have_http_status(:created)
       body = Oj.load(response.body)
       expect(body['bot']['pair']).to eq('ETHUSDT')
       expect(body['bot']['status']).to eq('pending')
-      expect(BotInitializerJob).to have_received(:perform_async)
     end
 
     it 'returns 422 for invalid params' do

@@ -5,6 +5,15 @@ module Api
     class BotsController < BaseController
       include BotSerialization
 
+      VALID_TRANSITIONS = {
+        'pending' => %w[running stopped],
+        'initializing' => %w[stopped],
+        'running' => %w[paused stopped],
+        'paused' => %w[running stopped],
+        'error' => %w[running stopped],
+        'stopped' => [],
+      }.freeze
+
       before_action :set_bot, only: %i[show update destroy]
 
       def index
@@ -26,7 +35,6 @@ module Api
 
         bot = Bot.new(bot_params.merge(exchange_account: account))
         bot.save!
-        BotInitializerJob.perform_async(bot.id)
         render json: { bot: bot_response(bot) }, status: :created
       end
 
@@ -69,16 +77,31 @@ module Api
 
       def handle_status_change
         new_status = params.dig(:bot, :status)
+        allowed = VALID_TRANSITIONS.fetch(@bot.status, [])
+
+        unless allowed.include?(new_status)
+          render json: { error: "Cannot transition from #{@bot.status} to #{new_status}" }, status: :bad_request
+          return
+        end
+
         case new_status
+        when 'running'
+          start_or_resume!
         when 'paused'
           @bot.update!(status: 'paused')
-        when 'running'
-          @bot.update!(status: 'running')
         when 'stopped'
           Grid::Stopper.new(@bot).call
           @bot.reload
+        end
+      end
+
+      def start_or_resume!
+        if %w[pending error].include?(@bot.status)
+          @bot.grid_levels.destroy_all if @bot.status == 'error'
+          @bot.update!(status: 'initializing')
+          BotInitializerJob.perform_async(@bot.id)
         else
-          render json: { error: "Invalid status transition: #{new_status}" }, status: :bad_request
+          @bot.update!(status: 'running')
         end
       end
 

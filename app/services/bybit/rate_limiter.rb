@@ -46,28 +46,17 @@ module Bybit
       return unless headers
 
       remaining = headers['X-Bapi-Limit-Status']
-      reset_ts  = headers['X-Bapi-Limit-Reset-Timestamp']
-
       return unless remaining
 
       config = BUCKETS.fetch(bucket) { return }
       used = config[:limit] - remaining.to_i
+      return unless used.to_f / config[:limit] > 0.8
 
-      if used.to_f / config[:limit] > 0.8
-        Rails.logger.warn("[RateLimiter] #{bucket} usage >80%: #{used}/#{config[:limit]}")
-      end
+      Rails.logger.warn("[RateLimiter] #{bucket} usage >80%: #{used}/#{config[:limit]}")
 
-      key = counter_key(bucket)
-      @redis.set(key, [used, 0].max)
-
-      if reset_ts
-        reset_time = reset_ts.to_i / 1000.0
-        now = Time.now.to_f
-        ttl = [(reset_time - now).ceil, 1].max
-        @redis.expire(key, ttl)
-      else
-        @redis.expire(key, config[:window])
-      end
+      # Only log — don't overwrite local counter with Bybit's header values.
+      # On demo/testnet, these headers reflect shared rate limits across all
+      # users, causing false positives that block our own requests.
     end
 
     private

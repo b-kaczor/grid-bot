@@ -60,14 +60,16 @@ export const BotCard = ({ bot }: BotCardProps) => {
             <Typography variant="h6">{bot.pair}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <StatusBadge status={bot.status} />
-              <IconButton
-                size="small"
-                onClick={handleDelete}
-                data-testid={`bot-delete-${bot.id}`}
-                sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+              {['pending', 'stopped', 'error'].includes(bot.status) && (
+                <IconButton
+                  size="small"
+                  onClick={handleDelete}
+                  data-testid={`bot-delete-${bot.id}`}
+                  sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
             </Box>
           </Box>
 

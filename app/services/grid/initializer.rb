@@ -13,7 +13,6 @@ module Grid
 
     def call
       validate_pending!
-      transition_to!('initializing')
 
       @client = Bybit::RestClient.new(exchange_account: @bot.exchange_account)
 
@@ -46,7 +45,7 @@ module Grid
     end
 
     def validate_pending!
-      raise Error, "Bot must be in pending status, got: #{@bot.status}" unless @bot.status == 'pending'
+      raise Error, "Bot must be in initializing status, got: #{@bot.status}" unless @bot.status == 'initializing'
     end
 
     def transition_to!(status)
@@ -261,14 +260,15 @@ module Grid
     end
 
     def extract_available_balance(response, coin)
-      accounts = response.data[:list] || []
-      accounts.each do |account|
-        coins = account[:coin] || []
-        coins.each do |c|
-          return BigDecimal(c[:availableToWithdraw] || '0') if c[:coin] == coin
-        end
-      end
-      BigDecimal('0')
+      coin_entry = find_coin_entry(response.data, coin)
+      return BigDecimal('0') unless coin_entry
+
+      val = coin_entry[:availableToWithdraw].presence || coin_entry[:walletBalance].presence || '0'
+      BigDecimal(val)
+    end
+
+    def find_coin_entry(data, coin)
+      (data[:list] || []).flat_map { |a| a[:coin] || [] }.find { |c| c[:coin] == coin }
     end
 
     def decimal_precision(value)

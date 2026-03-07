@@ -79,8 +79,9 @@ export const BotDetail = () => {
 
   const isRunning = bot.status === 'running';
   const isPaused = bot.status === 'paused';
+  const isPending = bot.status === 'pending';
   const canStop = isRunning || isPaused;
-  const isInitializing = bot.status === 'pending' || bot.status === 'initializing';
+  const isInitializing = bot.status === 'initializing';
 
   const handleStop = () => updateBot.mutate({ status: 'stopped' } as never);
   const handlePause = () => updateBot.mutate({ status: 'paused' } as never);
@@ -118,6 +119,17 @@ export const BotDetail = () => {
               Pause
             </Button>
           )}
+          {isPending && (
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={handleResume}
+              disabled={updateBot.isPending}
+            >
+              Start
+            </Button>
+          )}
           {isPaused && (
             <Button
               size="small"
@@ -140,7 +152,7 @@ export const BotDetail = () => {
               Stop
             </Button>
           )}
-          {bot.status === 'stopped' && (
+          {(bot.status === 'stopped' || isPending || bot.status === 'error') && (
             <Button
               size="small"
               variant="outlined"
@@ -153,6 +165,13 @@ export const BotDetail = () => {
           )}
         </Box>
       </Box>
+
+      {/* Pending state */}
+      {isPending && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Bot is configured and ready. Click <strong>Start</strong> to begin placing orders on the exchange.
+        </Alert>
+      )}
 
       {/* Initializing state */}
       {isInitializing && (
@@ -169,8 +188,8 @@ export const BotDetail = () => {
         </Alert>
       )}
 
-      {/* Stats Row */}
-      {!isInitializing && (
+      {/* Stats Row — hide only during initializing */}
+      {!isInitializing && !isPending && (
         <>
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 6, md: 3 }}>

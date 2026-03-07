@@ -112,7 +112,7 @@ RSpec.describe 'Trading Loop Integration', type: :integration do # rubocop:disab
   # --- Tests ---
 
   describe 'full buy-sell-buy cycle' do
-    let!(:bot) { create(:bot, exchange_account:, status: 'pending', grid_count: 4) }
+    let!(:bot) { create(:bot, exchange_account:, status: 'initializing', grid_count: 4) }
 
     it 'initializes, fills a buy, places counter-sell, fills sell, records profit' do
       Grid::Initializer.new(bot).call

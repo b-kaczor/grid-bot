@@ -119,32 +119,12 @@ RSpec.describe Bybit::RateLimiter do
   end
 
   describe '#update_from_headers' do
-    it 'updates Redis counter from remaining header' do
+    it 'does not overwrite Redis counter (log-only mode)' do
       headers = { 'X-Bapi-Limit-Status' => '15' }
       limiter.update_from_headers(:order_write, headers)
 
-      # order_write limit is 20, remaining is 15, so used = 5
-      expect(redis.raw_get('bybit:rate:order_write:count')).to eq(5)
-    end
-
-    it 'sets TTL from reset timestamp header' do
-      future_ms = ((Time.now.to_f + 3) * 1000).to_i.to_s
-      headers = {
-        'X-Bapi-Limit-Status' => '10',
-        'X-Bapi-Limit-Reset-Timestamp' => future_ms,
-      }
-      limiter.update_from_headers(:order_write, headers)
-
-      ttl = redis.ttl_for('bybit:rate:order_write:count')
-      expect(ttl).to be >= 1
-      expect(ttl).to be <= 4
-    end
-
-    it 'uses default window when no reset timestamp' do
-      headers = { 'X-Bapi-Limit-Status' => '10' }
-      limiter.update_from_headers(:order_write, headers)
-
-      expect(redis.ttl_for('bybit:rate:order_write:count')).to eq(1)
+      # Should NOT write to Redis — header sync caused false positives on demo/testnet
+      expect(redis.raw_get('bybit:rate:order_write:count')).to be_nil
     end
 
     it 'does nothing when headers is nil' do
@@ -154,14 +134,6 @@ RSpec.describe Bybit::RateLimiter do
     it 'does nothing when remaining header is missing' do
       headers = { 'X-Bapi-Limit-Reset-Timestamp' => '12345' }
       expect { limiter.update_from_headers(:order_write, headers) }.not_to raise_error
-    end
-
-    it 'clamps used count to minimum of 0' do
-      # remaining > limit means used would be negative
-      headers = { 'X-Bapi-Limit-Status' => '25' }
-      limiter.update_from_headers(:order_write, headers)
-
-      expect(redis.raw_get('bybit:rate:order_write:count')).to eq(0)
     end
 
     it 'logs warning when usage exceeds 80%' do
