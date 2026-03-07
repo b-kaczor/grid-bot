@@ -191,6 +191,31 @@ RSpec.describe Grid::Initializer do
       end
     end
 
+    context 'when quantity_per_level is below min_order_qty' do
+      let(:bot) { create(:bot, exchange_account:, status: 'pending', grid_count: 4, investment_amount: 0.01) }
+
+      before do
+        allow(client).to receive(:get_instruments_info).and_return(
+          Exchange::Response.new(
+            success: true,
+            data: {
+              list: [
+                {
+                  lotSizeFilter: { basePrecision: '0.0001', minOrderQty: '100', minOrderAmt: '1' },
+                  priceFilter: { tickSize: '0.01' },
+                }
+              ],
+            }
+          )
+        )
+      end
+
+      it 'transitions to error' do
+        expect { initializer.call }.to raise_error(described_class::Error)
+        expect(bot.reload.status).to eq('error')
+      end
+    end
+
     context 'when market buy fails' do
       before do
         stub_wallet_balance(available: '0')

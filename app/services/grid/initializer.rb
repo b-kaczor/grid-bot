@@ -80,6 +80,7 @@ module Grid
 
     def calculate_grid(current_price)
       calculator = build_calculator
+      calculator.validate!(investment: @bot.investment_amount, current_price:)
       levels = calculator.levels
       classification = calculator.classify_levels(current_price:)
       qty = calculator.quantity_per_level(investment: @bot.investment_amount, current_price:)
@@ -145,14 +146,17 @@ module Grid
       failed_count = 0
 
       placeable.each_slice(BATCH_SIZE) do |batch|
+        link_id_to_level = {}
         orders = batch.map do |gl, _index|
-          build_order_request(gl, classification[gl.level_index], qty)
+          req = build_order_request(gl, classification[gl.level_index], qty)
+          link_id_to_level[req[:order_link_id]] = gl
+          req
         end
 
         response = @client.batch_place_orders(symbol: @bot.pair, orders:)
 
         if response.success?
-          failed_count += process_batch_response(response, batch)
+          failed_count += process_batch_response(response, link_id_to_level)
         else
           Rails.logger.error("[Initializer] Batch failed entirely: #{response.error_message}")
           failed_count += batch.size
@@ -173,12 +177,12 @@ module Grid
       }
     end
 
-    def process_batch_response(response, batch)
+    def process_batch_response(response, link_id_to_level)
       failed = 0
       result_list = response.data[:list] || []
 
-      result_list.each_with_index do |entry, i|
-        gl, _index = batch[i]
+      result_list.each do |entry|
+        gl = link_id_to_level[entry[:orderLinkId]]
         next unless gl
 
         if entry[:code].to_s == '0'
