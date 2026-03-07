@@ -80,6 +80,9 @@ RSpec/EmptyExampleGroup:
 Rails/RedundantPresenceValidationOnBelongsTo:
   Enabled: false
 
+Metrics/MethodLength:
+  Max: 20
+
 Metrics/BlockLength:
   Exclude:
     - "config/routes.rb"
