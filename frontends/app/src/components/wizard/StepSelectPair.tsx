@@ -20,6 +20,7 @@ export const StepSelectPair = ({ selectedPair, onSelect }: StepSelectPairProps) 
         Search and select a trading pair to begin.
       </Typography>
       <Autocomplete
+        data-testid="pair-select"
         options={pairs ?? []}
         value={selectedPair}
         onChange={(_event, value) => onSelect(value)}

@@ -61,7 +61,7 @@ export const RiskSettingsCard = ({ bot }: RiskSettingsCardProps) => {
   const canEdit = bot.status === 'running' || bot.status === 'paused';
 
   return (
-    <Card variant="outlined">
+    <Card data-testid="risk-settings-card" variant="outlined">
       <CardContent>
         {isStopping && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -89,6 +89,7 @@ export const RiskSettingsCard = ({ bot }: RiskSettingsCardProps) => {
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
+                  data-testid="input-stop-loss"
                   label="Stop Loss Price"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}

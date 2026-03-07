@@ -43,6 +43,7 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
+            data-testid="input-lower-price"
             label="Lower Price"
             value={params.lowerPrice}
             onChange={(e) => onChange({ ...params, lowerPrice: e.target.value })}
@@ -55,6 +56,7 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
+            data-testid="input-upper-price"
             label="Upper Price"
             value={params.upperPrice}
             onChange={(e) => onChange({ ...params, upperPrice: e.target.value })}
@@ -70,6 +72,7 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
       <Box sx={{ mt: 3 }}>
         <Typography gutterBottom>Grid Count: {params.gridCount}</Typography>
         <Slider
+          data-testid="input-grid-count"
           value={params.gridCount}
           onChange={(_e, val) => onChange({ ...params, gridCount: val as number })}
           min={2}

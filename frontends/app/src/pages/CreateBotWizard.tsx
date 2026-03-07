@@ -116,20 +116,26 @@ export const CreateBotWizard = () => {
       )}
 
       {activeStep === 0 && (
-        <StepSelectPair selectedPair={selectedPair} onSelect={setSelectedPair} />
+        <Box data-testid="wizard-step-0">
+          <StepSelectPair selectedPair={selectedPair} onSelect={setSelectedPair} />
+        </Box>
       )}
 
       {activeStep === 1 && selectedPair && (
-        <StepSetParameters pair={selectedPair} params={params} onChange={handleParamsChange} />
+        <Box data-testid="wizard-step-1">
+          <StepSetParameters pair={selectedPair} params={params} onChange={handleParamsChange} />
+        </Box>
       )}
 
       {activeStep === 2 && selectedPair && (
-        <StepInvestment
-          pair={selectedPair}
-          params={params}
-          investmentPct={investmentPct}
-          onInvestmentPctChange={setInvestmentPct}
-        />
+        <Box data-testid="wizard-step-2">
+          <StepInvestment
+            pair={selectedPair}
+            params={params}
+            investmentPct={investmentPct}
+            onInvestmentPctChange={setInvestmentPct}
+          />
+        </Box>
       )}
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
