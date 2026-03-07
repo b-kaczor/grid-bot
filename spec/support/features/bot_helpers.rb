@@ -4,7 +4,7 @@ module Features
   # Thread-safe MockRedis singleton for feature specs.
   # Both the test thread and Puma server thread share this instance.
   module RedisOverride
-    def new(**_opts)
+    def new(*)
       Features::BotHelpers.mock_redis
     end
   end

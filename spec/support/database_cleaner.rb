@@ -4,6 +4,8 @@ require 'database_cleaner/active_record'
 
 RSpec.configure do |config|
   config.before(:suite) do
+    next unless RSpec.configuration.files_to_run.any? { |f| f.include?('spec/features') }
+
     DatabaseCleaner.clean_with(:truncation)
   end
 
