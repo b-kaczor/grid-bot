@@ -426,11 +426,49 @@ On bot start:
 
 ---
 
-## Phase 5: Analytics & Polish (Post-MVP)
+## Phase 5: Feature Specs (E2E Browser Testing)
 
-### 5.1 Analytics & Performance Monitoring
+**Goal:** Add Capybara-based browser E2E tests that exercise the full stack (Rails API + React frontend) through a real browser.
 
-#### 5.1.1 Analytics Database Schema
+### 5.1 Infrastructure Setup
+
+- Add gems: `capybara`, `cuprite` (headless Chrome driver, no Selenium dependency)
+- Configure Capybara to drive the Vite React frontend alongside the Rails API
+- Set up `spec/features/` directory with shared helpers for bot creation, fill simulation
+- MockRedis + mocked exchange client (same approach as integration specs)
+
+### 5.2 Feature Specs
+
+**Dashboard page** (`spec/features/dashboard_spec.rb`):
+- User sees bot cards with status, profit, range visualizer
+- Creating a new bot via the 3-step wizard
+- Bot status updates in real-time via ActionCable
+
+**Bot Detail page** (`spec/features/bot_detail_spec.rb`):
+- Grid visualization displays correct levels
+- Trade history table is paginated
+- Performance charts render
+- Risk settings card (stop-loss, take-profit, trailing) is editable
+
+**Create Bot Wizard** (`spec/features/create_bot_wizard_spec.rb`):
+- Step 1: pair selection
+- Step 2: parameter entry with validation
+- Step 3: investment summary and confirmation
+
+### 5.3 Phase 5 Milestone
+
+- [ ] Capybara + Cuprite configured and running
+- [ ] Feature specs cover all 3 frontend pages
+- [ ] Specs run in CI (headless Chrome)
+- [ ] All feature specs pass alongside existing 504 unit/integration specs
+
+---
+
+## Phase 6: Analytics & Polish (Post-MVP)
+
+### 6.1 Analytics & Performance Monitoring
+
+#### 6.1.1 Analytics Database Schema
 
 ```ruby
 # db/migrate/007_create_daily_bot_stats.rb
@@ -458,7 +496,7 @@ end
 
 Note: Per-level stats are already tracked via `grid_levels.cycle_count` — no separate `grid_level_stats` table needed for MVP. Can be added later if deeper per-level analytics are desired.
 
-#### 5.1.2 Analytics Service
+#### 6.1.2 Analytics Service
 
 `app/services/analytics/bot_analytics.rb`:
 
@@ -486,7 +524,7 @@ Note: Per-level stats are already tracked via `grid_levels.cycle_count` — no s
 | **Grid too narrow** | Time in range < 50% — price frequently escapes |
 | **Fee-inefficient** | Fee ratio > 60% — grid spacing too tight relative to fee tier |
 
-#### 5.1.3 Daily Stats Aggregation Worker
+#### 6.1.3 Daily Stats Aggregation Worker
 
 `app/workers/daily_stats_aggregation_worker.rb` (Sidekiq-cron, runs at 00:05 UTC daily):
 
@@ -495,7 +533,7 @@ Note: Per-level stats are already tracked via `grid_levels.cycle_count` — no s
 
 Incremental updates: `OrderFillWorker` bumps today's `daily_bot_stats` counters in real-time (upsert on `[bot_id, date]`). The nightly job reconciles and fills any gaps.
 
-#### 5.1.4 Analytics API Endpoints
+#### 6.1.4 Analytics API Endpoints
 
 ```
 GET /api/v1/bots/:id/analytics/summary       # Key metrics (profit, APR, drawdown, fee ratio)
@@ -504,7 +542,7 @@ GET /api/v1/bots/:id/analytics/grid_heatmap   # Per-level cycle counts + profit
 GET /api/v1/analytics/overview                # Aggregate stats across all bots
 ```
 
-#### 5.1.5 Frontend Analytics Views
+#### 6.1.5 Frontend Analytics Views
 
 **Analytics Tab** on Bot Detail page (`/bots/:id/analytics`):
 
@@ -530,19 +568,19 @@ GET /api/v1/analytics/overview                # Aggregate stats across all bots
    - All bots side by side: pair, APR, profit, drawdown, utilization, uptime
    - Sortable columns
 
-### 5.2 Tax & Reporting Module
+### 6.2 Tax & Reporting Module
 - CSV export of all trades with cost basis (FIFO method)
 - Compliant with Polish PIT-38 tax reporting
 - Fields: date, pair, side, quantity, price, fee, cost_basis, realized_gain
 
-### 5.3 AI Parameter Suggestion
+### 6.3 AI Parameter Suggestion
 - `POST /api/v1/exchange/suggest` endpoint
 - Analyze 30-day price history for a pair
 - Calculate: mean, std_dev, min, max, ATR
 - Suggest: lower = mean - 2*std_dev, upper = mean + 2*std_dev
 - Suggest grid count based on ATR vs fee threshold
 
-### 5.4 Multi-Bot Support
+### 6.4 Multi-Bot Support
 - Multiple bots on different pairs, same account
 - Dashboard aggregates total P&L across all bots
 - Respect 500-order limit per Bybit account (5 bots x 100 orders max)

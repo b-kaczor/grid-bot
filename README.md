@@ -67,7 +67,7 @@ Then open **http://localhost:5173**
 
 ```bash
 # Backend (RSpec)
-bundle exec rspec              # 414 specs
+bundle exec rspec              # 504 specs
 
 # Rubocop
 bundle exec rubocop
@@ -133,7 +133,7 @@ frontends/app/src/
   theme/           — MUI v6 dark theme
   types/           — TypeScript interfaces
 docs/
-  IMPLEMENTATION_PLAN.md  — Full 5-phase plan
+  IMPLEMENTATION_PLAN.md  — Full 6-phase plan
   agents/                 — Architecture docs per phase
 ```
 
@@ -143,4 +143,5 @@ docs/
 - [x] Phase 2: Execution Loop (trading engine, WebSocket, reconciliation)
 - [x] Phase 3: Dashboard (Rails API, React frontend, real-time updates)
 - [x] Phase 4: Risk Management (stop-loss, take-profit, trailing grid)
-- [ ] Phase 5: Analytics (daily stats, tax export, AI suggestions)
+- [ ] Phase 5: Feature Specs (Capybara browser-based E2E tests)
+- [ ] Phase 6: Analytics (daily stats, tax export, AI suggestions)

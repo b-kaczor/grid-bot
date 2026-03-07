@@ -108,6 +108,10 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `config/systemd/env.example` — Example environment file for systemd units
 - `Procfile.dev` — Development process manager (foreman)
 
+### Test Support
+- `spec/support/mock_redis.rb` — Shared MockRedis class for specs needing Redis without a live server
+- `spec/integration/trading_loop_spec.rb` — 9 end-to-end integration tests (full trading loop, risk management, idempotency)
+
 ### Migrations
 - `db/migrate/20260307004956_create_exchange_accounts.rb`
 - `db/migrate/20260307004957_create_bots.rb`
@@ -124,6 +128,8 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 | phase2-execution-loop | 2 | Complete | Initializer, WebSocket listener, fill worker, reconciliation, Redis state, snapshots |
 | phase3-dashboard | 3 | Complete | Rails API endpoints, ActionCable, React frontend (Vite + MUI v6 + React Query) |
 | phase4-risk-management | 4 | Complete | Stop-loss, take-profit, trailing grid, DCP safety, frontend risk UI, systemd units |
+| phase5-feature-specs | 5 | Not started | Capybara browser-based E2E tests for React frontend |
+| phase6-analytics | 6 | Not started | Daily stats, tax export, AI suggestions, multi-bot analytics |
 
 ## Cross-references
 
@@ -140,3 +146,4 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - 2026-03-07: Phase 2 Execution Loop complete — Grid::Initializer, Grid::RedisState, Bybit::WebsocketListener, OrderFillWorker, GridReconciliationWorker, BalanceSnapshotWorker (see phase2-execution-loop/)
 - 2026-03-07: Phase 3 Dashboard complete — Rails REST API (10 endpoints), ActionCable BotChannel, Grid::Stopper, BotInitializerJob, React frontend (Vite + MUI v6 + React Query): Dashboard, BotDetail, CreateBotWizard (see phase3-dashboard/)
 - 2026-03-07: Phase 4 Safety & Production complete — Grid::RiskManager (atomic stop-loss/take-profit), Grid::TrailingManager (grid shift on top-sell fill), DCP safety (40s dead man's switch), RiskSettingsCard (inline edit), systemd units, Procfile.dev, rate limiter monitoring (see phase4-risk-management/)
+- 2026-03-07: Integration specs added — 9 end-to-end tests covering full trading loop, multi-cycle profit, idempotency, fee-adjusted quantities, stop-loss/take-profit, race safety. Shared MockRedis extracted to spec/support/
