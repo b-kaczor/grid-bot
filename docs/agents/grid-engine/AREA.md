@@ -47,6 +47,48 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `app/models/trade.rb` — Completed buy+sell cycles with profit tracking
 - `app/models/balance_snapshot.rb` — Portfolio value snapshots at fine/hourly/daily granularity
 
+### Controllers (Phase 3)
+- `app/controllers/api/v1/base_controller.rb` — Error handling, pagination helpers, standard JSON envelope; all API controllers inherit from this
+- `app/controllers/api/v1/bots_controller.rb` — CRUD + lifecycle actions (start, stop, pause, resume)
+- `app/controllers/api/v1/bots/trades_controller.rb` — Paginated trade history for a bot
+- `app/controllers/api/v1/bots/chart_controller.rb` — Balance snapshot time series for charting
+- `app/controllers/api/v1/bots/grid_controller.rb` — Grid levels with current order status
+- `app/controllers/api/v1/exchange/pairs_controller.rb` — Available spot trading pairs from Bybit
+- `app/controllers/api/v1/exchange/balances_controller.rb` — Current account balance
+
+### Channels (Phase 3)
+- `app/channels/bot_channel.rb` — ActionCable channel; streams per-bot fill events, status changes, and price updates to subscribed clients
+
+### Services (Phase 3)
+- `app/services/grid/stopper.rb` — Graceful bot shutdown: cancels open orders on exchange, sets status to `stopped`
+
+### Jobs (Phase 3)
+- `app/jobs/bot_initializer_job.rb` — Sidekiq job that enqueues `Grid::Initializer`; triggered on bot create
+
+### Frontend (Phase 3)
+- `frontends/app/src/main.tsx` — Vite + React app entry point
+- `frontends/app/src/App.tsx` — Root component with React Router routes
+- `frontends/app/src/api/client.ts` — Axios base client
+- `frontends/app/src/api/bots.ts` — Bot API calls (React Query hooks)
+- `frontends/app/src/api/exchange.ts` — Exchange API calls
+- `frontends/app/src/cable/consumer.ts` — ActionCable consumer singleton
+- `frontends/app/src/cable/useBotChannel.ts` — Typed hook for per-bot ActionCable subscription
+- `frontends/app/src/types/bot.ts` — Bot TypeScript types
+- `frontends/app/src/types/trade.ts` — Trade TypeScript types
+- `frontends/app/src/types/cable.ts` — `CableMessage` discriminated union
+- `frontends/app/src/types/exchange.ts` — Exchange pair/balance types
+- `frontends/app/src/pages/BotDashboard.tsx` — Dashboard page: grid of BotCards
+- `frontends/app/src/pages/BotDetail.tsx` — Detail page: stats, grid visualization, charts, trade history
+- `frontends/app/src/pages/CreateBotWizard.tsx` — 3-step bot creation wizard
+- `frontends/app/src/components/BotCard.tsx` — Card with status badge, range visualizer, profit stats
+- `frontends/app/src/components/GridVisualization.tsx` — Vertical price axis with level status colors
+- `frontends/app/src/components/PerformanceCharts.tsx` — Line chart (portfolio value) + bar chart (daily profit)
+- `frontends/app/src/components/StatusBadge.tsx` — Bot status chip
+- `frontends/app/src/components/RangeVisualizer.tsx` — Price position bar within grid bounds
+- `frontends/app/src/components/TradeHistoryTable.tsx` — Paginated trade table
+- `frontends/app/src/components/ConnectionBanner.tsx` — ActionCable connection status banner
+- `frontends/app/src/theme/index.ts` — MUI v6 theme
+
 ### Jobs / Workers
 - `app/jobs/snapshot_retention_job.rb` — Sidekiq-cron daily at 03:00 UTC; downsample and prune balance snapshots
 - `app/workers/order_fill_worker.rb` — Sidekiq critical queue; processes fills, places counter-orders
@@ -68,6 +110,7 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 |-----------|-------|--------|-------------|
 | phase1-foundation | 1 | Complete | Rails skeleton, Bybit client, DB schema, grid calculator |
 | phase2-execution-loop | 2 | Complete | Initializer, WebSocket listener, fill worker, reconciliation, Redis state, snapshots |
+| phase3-dashboard | 3 | Complete | Rails API endpoints, ActionCable, React frontend (Vite + MUI v6 + React Query) |
 
 ## Cross-references
 
@@ -76,8 +119,10 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `docs/agents/patterns/websocket-reconnection.md` — Exponential backoff reconnect, heartbeat, graceful shutdown (Phase 2)
 - `docs/agents/patterns/optimistic-locking-sidekiq.md` — Exactly-once counter-order placement with StaleObjectError retry (Phase 2)
 - `docs/agents/patterns/self-scheduling-sidekiq-worker.md` — Sub-minute recurring workers without cron (Phase 2)
+- `docs/agents/patterns/actioncable-react-integration.md` — Per-resource ActionCable subscription with React Query coexistence (Phase 3)
 
 ## History
 
 - 2026-03-07: Phase 1 Foundation complete — Rails skeleton, Bybit REST client, Exchange::Adapter interface, DB schema (6 tables), Grid::Calculator (see phase1-foundation/)
 - 2026-03-07: Phase 2 Execution Loop complete — Grid::Initializer, Grid::RedisState, Bybit::WebsocketListener, OrderFillWorker, GridReconciliationWorker, BalanceSnapshotWorker (see phase2-execution-loop/)
+- 2026-03-07: Phase 3 Dashboard complete — Rails REST API (10 endpoints), ActionCable BotChannel, Grid::Stopper, BotInitializerJob, React frontend (Vite + MUI v6 + React Query): Dashboard, BotDetail, CreateBotWizard (see phase3-dashboard/)
