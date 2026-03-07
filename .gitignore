@@ -32,3 +32,9 @@
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+
+# Playwright CLI logs
+.playwright-cli/
+
+# Manual tester screenshots
+docs/agents/**/screenshots/

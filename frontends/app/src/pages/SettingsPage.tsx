@@ -183,6 +183,7 @@ export const SettingsPage = () => {
 
               {testConnection.isSuccess && (
                 <Alert
+                  data-testid="settings-test-result"
                   severity={testConnection.data.success ? 'success' : 'error'}
                   sx={{ mb: 2 }}
                 >
