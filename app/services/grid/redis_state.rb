@@ -14,7 +14,7 @@ module Grid
       bot_id = bot.id
       @redis.pipelined do |pipe|
         pipe.set(key(bot_id, :status), bot.status)
-        pipe.set(key(bot_id, :stats), initial_stats_json)
+        seed_stats(pipe, bot_id)
         seed_levels(pipe, bot_id, bot.grid_levels)
       end
     end
@@ -51,14 +51,11 @@ module Grid
       end
     end
 
-    def initial_stats_json
-      Oj.dump(
-        {
-          realized_profit: '0',
-          trade_count: '0',
-          uptime_start: Time.current.to_i.to_s,
-        }
-      )
+    def seed_stats(pipe, bot_id)
+      stats_key = key(bot_id, :stats)
+      pipe.hset(stats_key, 'realized_profit', '0')
+      pipe.hset(stats_key, 'trade_count', '0')
+      pipe.hset(stats_key, 'uptime_start', Time.current.to_i.to_s)
     end
 
     def key(bot_id, suffix)

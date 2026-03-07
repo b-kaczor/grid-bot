@@ -100,11 +100,10 @@ RSpec.describe Grid::RedisState do
       expect(redis.get('grid:42:status')).to eq('running')
     end
 
-    it 'sets initial stats with zeroed counters and uptime_start' do
-      stats = Oj.load(redis.get('grid:42:stats'))
-      expect(stats['realized_profit']).to eq('0')
-      expect(stats['trade_count']).to eq('0')
-      expect(stats['uptime_start']).to be_present
+    it 'sets initial stats as hash with zeroed counters and uptime_start' do
+      expect(redis.hget('grid:42:stats', 'realized_profit')).to eq('0')
+      expect(redis.hget('grid:42:stats', 'trade_count')).to eq('0')
+      expect(redis.hget('grid:42:stats', 'uptime_start')).to be_present
     end
 
     it 'stores each grid level as a hash entry' do
@@ -197,7 +196,7 @@ RSpec.describe Grid::RedisState do
       expect(redis.get('grid:42:status')).to be_nil
       expect(redis.get('grid:42:current_price')).to be_nil
       expect(redis.hgetall('grid:42:levels')).to be_empty
-      expect(redis.get('grid:42:stats')).to be_nil
+      expect(redis.hgetall('grid:42:stats')).to be_empty
     end
 
     it 'does not raise for non-existent bot' do
