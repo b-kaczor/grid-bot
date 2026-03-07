@@ -81,7 +81,7 @@ export const BotDetail = () => {
   const canStop = isRunning || isPaused;
   const isInitializing = bot.status === 'pending' || bot.status === 'initializing';
 
-  const handleStop = () => updateBot.mutate({ status: 'stopping' } as never);
+  const handleStop = () => updateBot.mutate({ status: 'stopped' } as never);
   const handlePause = () => updateBot.mutate({ status: 'paused' } as never);
   const handleResume = () => updateBot.mutate({ status: 'running' } as never);
   const handleDelete = () => {
