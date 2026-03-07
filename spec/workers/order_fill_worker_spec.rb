@@ -237,6 +237,42 @@ RSpec.describe OrderFillWorker do
       end
     end
 
+    context 'when bot is stopping' do
+      before do
+        buy_level
+        sell_level
+        buy_order
+        bot.update!(status: 'stopping')
+        allow(client).to receive(:place_order)
+      end
+
+      it 'marks the order as filled but does not place a counter-order' do
+        worker.perform(Oj.dump(fill_data(buy_order)))
+        expect(buy_order.reload.status).to eq('filled')
+        expect(client).not_to have_received(:place_order)
+      end
+
+      it 'does not create new orders' do
+        expect { worker.perform(Oj.dump(fill_data(buy_order))) }.not_to change(Order, :count)
+      end
+    end
+
+    context 'when bot is stopped' do
+      before do
+        buy_level
+        sell_level
+        buy_order
+        bot.update!(status: 'stopped')
+        allow(client).to receive(:place_order)
+      end
+
+      it 'marks the order as filled but does not place a counter-order' do
+        worker.perform(Oj.dump(fill_data(buy_order)))
+        expect(buy_order.reload.status).to eq('filled')
+        expect(client).not_to have_received(:place_order)
+      end
+    end
+
     context 'with boundary levels' do
       before do
         buy_level.update!(level_index: 0)

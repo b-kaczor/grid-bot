@@ -105,6 +105,11 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
   end
 
   def handle_fill(order, grid_level, bot, client)
+    if bot.status.in?(%w[stopping stopped])
+      Rails.logger.info("[Fill] Bot #{bot.id} is #{bot.status}, skipping counter-order")
+      return nil
+    end
+
     if order.side == 'buy'
       handle_buy_fill(order, grid_level, bot, client)
       nil
