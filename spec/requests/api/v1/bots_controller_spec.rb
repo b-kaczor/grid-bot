@@ -94,6 +94,24 @@ RSpec.describe 'Api::V1::Bots', type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
+    it 'creates a bot with risk params' do
+      risk_params = valid_params.deep_merge(
+        bot: { stop_loss_price: '1900.00', take_profit_price: '3500.00', trailing_up_enabled: true }
+      )
+      post '/api/v1/bots', params: risk_params
+      expect(response).to have_http_status(:created)
+      body = Oj.load(response.body)
+      expect(body['bot']['stop_loss_price']).to eq('1900.0')
+      expect(body['bot']['take_profit_price']).to eq('3500.0')
+      expect(body['bot']['trailing_up_enabled']).to be true
+    end
+
+    it 'rejects stop_loss_price >= lower_price' do
+      bad_params = valid_params.deep_merge(bot: { stop_loss_price: '2500.00' })
+      post '/api/v1/bots', params: bad_params
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
     context 'when no exchange account exists' do
       before { ExchangeAccount.destroy_all }
 
@@ -140,6 +158,27 @@ RSpec.describe 'Api::V1::Bots', type: :request do
     it 'returns 400 for invalid status' do
       patch "/api/v1/bots/#{bot.id}", params: { bot: { status: 'invalid' } }
       expect(response).to have_http_status(:bad_request)
+    end
+
+    it 'updates risk params on a running bot' do
+      patch "/api/v1/bots/#{bot.id}", params: {
+        bot: { stop_loss_price: '1800.00', take_profit_price: '3500.00', trailing_up_enabled: true },
+      }
+      expect(response).to have_http_status(:ok)
+      bot.reload
+      expect(bot.stop_loss_price).to eq(BigDecimal('1800'))
+      expect(bot.take_profit_price).to eq(BigDecimal('3500'))
+      expect(bot.trailing_up_enabled).to be true
+    end
+
+    it 'returns risk fields in JSON response' do
+      bot.update!(stop_loss_price: BigDecimal('1800'), take_profit_price: BigDecimal('3500'))
+      patch "/api/v1/bots/#{bot.id}", params: { bot: { trailing_up_enabled: true } }
+      body = Oj.load(response.body)
+      expect(body['bot']['stop_loss_price']).to eq('1800.0')
+      expect(body['bot']['take_profit_price']).to eq('3500.0')
+      expect(body['bot']['trailing_up_enabled']).to be true
+      expect(body['bot']).to have_key('stop_reason')
     end
   end
 

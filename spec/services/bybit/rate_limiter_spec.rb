@@ -1,54 +1,70 @@
 # frozen_string_literal: true
 
+require 'logger'
 require_relative '../../../app/services/bybit/rate_limiter'
 
+# Stub Rails.logger if Rails is not loaded (standalone spec)
+unless defined?(Rails)
+  module Rails
+    def self.logger
+      @logger ||= Logger.new(File::NULL)
+    end
+
+    def self.logger=(logger)
+      @logger = logger
+    end
+  end
+end
+
 RSpec.describe Bybit::RateLimiter do
-  let(:redis) { MockRedis.new }
+  let(:mock_redis_class) do
+    Class.new do
+      def initialize
+        @store = {}
+        @ttls = {}
+      end
+
+      def eval(_script, keys:, argv:)
+        key = keys[0]
+        limit = argv[0].to_i
+        window = argv[1].to_i
+        current = (@store[key] || 0).to_i
+        return 0 if current >= limit
+
+        @store[key] = current + 1
+        @ttls[key] ||= window
+        1
+      end
+
+      def get(key)
+        @store[key]&.to_s
+      end
+
+      def set(key, value)
+        @store[key] = value.to_i
+      end
+
+      def expire(key, ttl)
+        @ttls[key] = ttl
+      end
+
+      def ttl_for(key)
+        @ttls[key]
+      end
+
+      def raw_get(key)
+        @store[key]
+      end
+    end
+  end
+
+  let(:redis) { mock_redis_class.new }
+  let(:logger) { instance_double(Logger, warn: nil, info: nil, debug: nil) }
 
   subject(:limiter) { described_class.new(redis:) }
 
-  # Minimal mock Redis that supports the operations used by RateLimiter
   before do
-    stub_const(
-      'MockRedis', Class.new do
-                     def initialize
-                       @store = {}
-                       @ttls = {}
-                     end
-
-                     def eval(_script, keys:, argv:)
-                       key = keys[0]
-                       limit = argv[0].to_i
-                       window = argv[1].to_i
-                       current = (@store[key] || 0).to_i
-                       return 0 if current >= limit
-
-                       @store[key] = current + 1
-                       @ttls[key] ||= window
-                       1
-                     end
-
-                     def get(key)
-                       @store[key]&.to_s
-                     end
-
-                     def set(key, value)
-                       @store[key] = value.to_i
-                     end
-
-                     def expire(key, ttl)
-                       @ttls[key] = ttl
-                     end
-
-                     def ttl_for(key)
-                       @ttls[key]
-                     end
-
-                     def raw_get(key)
-                       @store[key]
-                     end
-                   end
-    )
+    allow(Rails).to receive(:logger).and_return(logger)
   end
 
   describe '#check!' do
@@ -87,6 +103,18 @@ RSpec.describe Bybit::RateLimiter do
     it 'tracks buckets independently' do
       20.times { limiter.check!(:order_write) }
       expect { limiter.check!(:order_batch) }.not_to raise_error
+    end
+
+    context 'with force: true' do
+      it 'bypasses rate limit when bucket is exhausted' do
+        20.times { limiter.check!(:order_write) }
+        expect { limiter.check!(:order_write, force: true) }.not_to raise_error
+      end
+
+      it 'still validates the bucket name' do
+        expect { limiter.check!(:unknown, force: true) }
+          .to raise_error(ArgumentError, /Unknown bucket/)
+      end
     end
   end
 
@@ -134,6 +162,20 @@ RSpec.describe Bybit::RateLimiter do
       limiter.update_from_headers(:order_write, headers)
 
       expect(redis.raw_get('bybit:rate:order_write:count')).to eq(0)
+    end
+
+    it 'logs warning when usage exceeds 80%' do
+      # order_write limit is 20, remaining=3 means used=17, usage=85%
+      headers = { 'X-Bapi-Limit-Status' => '3' }
+      limiter.update_from_headers(:order_write, headers)
+      expect(logger).to have_received(:warn).with(%r{RateLimiter.*order_write.*>80%.*17/20})
+    end
+
+    it 'does not log warning when usage is at or below 80%' do
+      # order_write limit is 20, remaining=4 means used=16, usage=80%
+      headers = { 'X-Bapi-Limit-Status' => '4' }
+      limiter.update_from_headers(:order_write, headers)
+      expect(logger).not_to have_received(:warn)
     end
   end
 

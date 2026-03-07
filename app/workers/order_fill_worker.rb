@@ -57,6 +57,7 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
     grid_level = order.grid_level.reload
     redis_state.update_on_fill(bot, grid_level, trade)
     broadcast_fill(bot, grid_level, trade, redis_state)
+    check_risk(bot, order.avg_fill_price)
   end
 
   def find_order(order_data, order_data_json, retry_count)
@@ -141,24 +142,35 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
   end
 
   def handle_sell_fill(order, grid_level, bot, client)
-    buy_level_index = grid_level.level_index - 1
-    buy_level = bot.grid_levels.find_by(level_index: buy_level_index)
+    if try_trailing(bot, grid_level, client)
+      return record_trade(order, grid_level, bot)
+    end
+
+    return unless place_counter_buy(order, grid_level, bot, client)
+
+    grid_level.update!(cycle_count: grid_level.cycle_count + 1)
+    record_trade(order, grid_level, bot)
+  end
+
+  def place_counter_buy(order, grid_level, bot, client)
+    buy_level = bot.grid_levels.find_by(level_index: grid_level.level_index - 1)
 
     unless buy_level
       Rails.logger.warn("[Fill] No buy level below #{grid_level.level_index} for bot #{bot.id}")
-      return
+      return false
     end
 
     buy_qty = bot.quantity_per_level
     raise "Bot #{bot.id} has no quantity_per_level set" unless buy_qty
 
-    place_counter_order(
-      bot:, client:, level: buy_level, side: 'buy',
-      qty: buy_qty, paired_order: order
-    )
+    place_counter_order(bot:, client:, level: buy_level, side: 'buy', qty: buy_qty, paired_order: order)
+  end
 
-    grid_level.update!(cycle_count: grid_level.cycle_count + 1)
-    record_trade(order, grid_level, bot)
+  def try_trailing(bot, grid_level, client)
+    Grid::TrailingManager.new(bot, filled_level: grid_level, client:).maybe_trail!
+  rescue Grid::TrailingManager::TrailError => e
+    Rails.logger.warn("[Fill] Trailing skipped for bot #{bot.id}: #{e.message}")
+    false
   end
 
   def place_counter_order(bot:, client:, level:, side:, qty:, paired_order:) # rubocop:disable Metrics/AbcSize, Metrics/ParameterLists
@@ -238,6 +250,14 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
       Rails.logger.warn("[Fill] Fee in unexpected coin #{order.fee_coin} for order #{order.id}")
       BigDecimal('0')
     end
+  end
+
+  def check_risk(bot, price)
+    return unless price
+
+    Grid::RiskManager.new(bot, current_price: price).check!
+  rescue StandardError => e
+    Rails.logger.error("[Fill] Risk check failed for bot #{bot.id}: #{e.message}")
   end
 
   def broadcast_fill(bot, grid_level, trade, redis_state)

@@ -8,6 +8,9 @@ import {
   Card,
   CardContent,
   Grid,
+  FormControlLabel,
+  Switch,
+  Alert,
 } from '@mui/material';
 import type { TradingPair } from '../../types/exchange.ts';
 import { validateParameters } from './gridParameters.ts';
@@ -88,6 +91,51 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
           <ToggleButton value="arithmetic">Arithmetic</ToggleButton>
           <ToggleButton value="geometric">Geometric</ToggleButton>
         </ToggleButtonGroup>
+      </Box>
+
+      <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <TextField
+            label="Stop Loss Price (optional)"
+            value={params.stopLossPrice}
+            onChange={(e) => onChange({ ...params, stopLossPrice: e.target.value })}
+            error={!!errors.stopLossPrice}
+            helperText={errors.stopLossPrice || 'Leave blank to disable'}
+            type="number"
+            fullWidth
+            slotProps={{ htmlInput: { step: pair.tick_size, min: 0 } }}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <TextField
+            label="Take Profit Price (optional)"
+            value={params.takeProfitPrice}
+            onChange={(e) => onChange({ ...params, takeProfitPrice: e.target.value })}
+            error={!!errors.takeProfitPrice}
+            helperText={errors.takeProfitPrice || 'Leave blank to disable'}
+            type="number"
+            fullWidth
+            slotProps={{ htmlInput: { step: pair.tick_size, min: 0 } }}
+          />
+        </Grid>
+      </Grid>
+
+      <Box sx={{ mt: 2 }}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={params.trailingUpEnabled}
+              onChange={(e) => onChange({ ...params, trailingUpEnabled: e.target.checked })}
+            />
+          }
+          label="Trailing Grid"
+        />
+        {params.trailingUpEnabled && (
+          <Alert severity="info" sx={{ mt: 1 }}>
+            Trailing keeps the bot running above the grid range by shifting upward. This sells base
+            at lower prices and re-buys higher — it is a continuity mechanism, not a profit strategy.
+          </Alert>
+        )}
       </Box>
 
       <Card variant="outlined" sx={{ mt: 3 }}>

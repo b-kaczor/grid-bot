@@ -221,6 +221,57 @@ RSpec.describe BalanceSnapshotWorker do
       end
     end
 
+    context 'with risk check' do
+      let(:risk_manager) { instance_double(Grid::RiskManager) }
+
+      before do
+        bot
+        allow(Grid::RiskManager).to receive(:new).and_return(risk_manager)
+      end
+
+      it 'skips snapshot when risk manager triggers stop' do
+        allow(risk_manager).to receive(:check!).and_return(:stop_loss)
+        expect { worker.perform }.not_to change(BalanceSnapshot, :count)
+      end
+
+      it 'creates snapshot when risk manager returns nil' do
+        allow(risk_manager).to receive(:check!).and_return(nil)
+        expect { worker.perform }.to change(BalanceSnapshot, :count).by(1)
+      end
+
+      it 'creates snapshot when risk check raises (non-fatal)' do
+        allow(risk_manager).to receive(:check!).and_raise(StandardError, 'boom')
+        allow(Rails.logger).to receive(:error)
+        expect { worker.perform }.to change(BalanceSnapshot, :count).by(1)
+        expect(Rails.logger).to have_received(:error).with(/Risk check failed/)
+      end
+    end
+
+    context 'with DCP health check' do
+      let(:redis) { instance_double(Redis) }
+
+      before do
+        bot
+        allow(Redis).to receive(:new).and_return(redis)
+      end
+
+      it 'logs warning when DCP confirmation is stale (>60s)' do
+        allow(redis).to receive(:get).with('grid:dcp:registered_at').and_return('1000')
+        allow(redis).to receive(:get).with('grid:dcp:last_confirmed').and_return('1000')
+        allow(Time).to receive(:current).and_return(Time.zone.at(1100))
+        allow(Rails.logger).to receive(:warn)
+        worker.perform
+        expect(Rails.logger).to have_received(:warn).with(/No DCP confirmation/)
+      end
+
+      it 'does not warn when DCP was never registered' do
+        allow(redis).to receive(:get).with('grid:dcp:registered_at').and_return(nil)
+        allow(Rails.logger).to receive(:warn)
+        worker.perform
+        expect(Rails.logger).not_to have_received(:warn).with(/DCP/)
+      end
+    end
+
     context 'with per-bot error isolation' do
       let(:bot2) { create(:bot, exchange_account:, status: 'running') }
 

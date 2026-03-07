@@ -1,0 +1,4 @@
+web: bin/rails server -p 3000
+worker: bundle exec sidekiq -C config/sidekiq.yml
+ws: bundle exec ruby bin/ws_listener
+frontend: cd frontends/app && npx vite --port 5173

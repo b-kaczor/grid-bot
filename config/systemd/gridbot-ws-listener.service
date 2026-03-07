@@ -1,0 +1,16 @@
+[Unit]
+Description=GridBot WebSocket Listener
+After=network.target redis.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/gridbot/env
+User=${GRIDBOT_USER}
+WorkingDirectory=${GRIDBOT_DIR}
+ExecStart=/bin/bash -lc 'bundle exec ruby bin/ws_listener'
+Restart=on-failure
+RestartSec=5
+SyslogIdentifier=gridbot-ws
+
+[Install]
+WantedBy=multi-user.target

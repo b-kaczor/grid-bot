@@ -32,6 +32,9 @@ export const CreateBotWizard = () => {
     upperPrice: '',
     gridCount: 20,
     spacingType: 'arithmetic',
+    stopLossPrice: '',
+    takeProfitPrice: '',
+    trailingUpEnabled: false,
   });
   const [investmentPct, setInvestmentPct] = useState(50);
 
@@ -79,6 +82,9 @@ export const CreateBotWizard = () => {
         grid_count: params.gridCount,
         spacing_type: params.spacingType,
         investment_amount: computeInvestmentAmount(),
+        stop_loss_price: params.stopLossPrice || undefined,
+        take_profit_price: params.takeProfitPrice || undefined,
+        trailing_up_enabled: params.trailingUpEnabled,
       },
       {
         onSuccess: (response) => {

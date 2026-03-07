@@ -61,7 +61,11 @@ RSpec.describe Bybit::WebsocketListener do
   end
 
   describe 'subscription' do
-    it 'subscribes to order.spot, execution.spot, and wallet' do
+    before do
+      allow(Bot).to receive(:running).and_return(Bot.none)
+    end
+
+    it 'subscribes to core topics including dcp' do
       connection = instance_double(Protocol::WebSocket::Connection)
       allow(connection).to receive(:send_text)
 
@@ -70,7 +74,21 @@ RSpec.describe Bybit::WebsocketListener do
       expect(connection).to have_received(:send_text) do |json|
         data = Oj.load(json, symbol_keys: true)
         expect(data[:op]).to eq('subscribe')
-        expect(data[:args]).to contain_exactly('order.spot', 'execution.spot', 'wallet')
+        expect(data[:args]).to include('order.spot', 'execution.spot', 'wallet', 'dcp')
+      end
+    end
+
+    it 'includes ticker topics for running bot pairs' do
+      running_scope = double(pluck: %w[ETHUSDT BTCUSDT ETHUSDT])
+      allow(Bot).to receive(:running).and_return(running_scope)
+      connection = instance_double(Protocol::WebSocket::Connection)
+      allow(connection).to receive(:send_text)
+
+      listener.send(:subscribe, connection)
+
+      expect(connection).to have_received(:send_text) do |json|
+        data = Oj.load(json, symbol_keys: true)
+        expect(data[:args]).to include('tickers.ETHUSDT', 'tickers.BTCUSDT')
       end
     end
   end
@@ -193,6 +211,84 @@ RSpec.describe Bybit::WebsocketListener do
 
     it 'handles auth success messages' do
       expect { listener.send(:process_message, { op: 'auth', success: true }) }.not_to raise_error
+    end
+  end
+
+  describe 'DCP registration' do
+    it 'registers DCP via REST client and stores timestamp in Redis' do
+      account = instance_double(ExchangeAccount, api_key: 'key', api_secret: 'secret')
+      client = instance_double(Bybit::RestClient)
+      allow(Bybit::RestClient).to receive(:new).and_return(client)
+      allow(client).to receive(:set_dcp).and_return(
+        Exchange::Response.new(success: true, data: {})
+      )
+      allow(redis).to receive(:set)
+
+      listener.send(:register_dcp, account)
+
+      expect(client).to have_received(:set_dcp).with(time_window: 40)
+      expect(redis).to have_received(:set).with('grid:dcp:registered_at', anything)
+    end
+  end
+
+  describe 'DCP message handling' do
+    it 'logs error and triggers reconciliation on DCP OFF status' do
+      allow(Rails.logger).to receive(:error)
+      allow(GridReconciliationWorker).to receive(:perform_async)
+      allow(Bot).to receive(:running).and_return(Bot.none)
+
+      data = { topic: 'dcp', data: [{ dcpStatus: 'OFF' }] }
+      listener.send(:process_message, data)
+
+      expect(Rails.logger).to have_received(:error).with(/DCP triggered/)
+    end
+
+    it 'stores last_confirmed timestamp on DCP heartbeat' do
+      allow(redis).to receive(:set)
+
+      data = { topic: 'dcp', data: [{ dcpStatus: 'ON' }] }
+      listener.send(:process_message, data)
+
+      expect(redis).to have_received(:set).with('grid:dcp:last_confirmed', anything)
+    end
+  end
+
+  describe 'ticker message handling' do
+    let(:risk_manager) { instance_double(Grid::RiskManager) }
+
+    before do
+      allow(Grid::RiskManager).to receive(:new).and_return(risk_manager)
+      allow(risk_manager).to receive(:check!).and_return(nil)
+      allow(redis_state).to receive(:update_price)
+    end
+
+    it 'runs risk check for running bots on the ticker symbol' do
+      bot = create(:bot, status: 'running', pair: 'ETHUSDT')
+
+      data = { topic: 'tickers.ETHUSDT', data: { symbol: 'ETHUSDT', lastPrice: '1800.0' } }
+      listener.send(:process_message, data)
+
+      expect(Grid::RiskManager).to have_received(:new).with(bot, current_price: '1800.0')
+      expect(risk_manager).to have_received(:check!)
+    end
+
+    it 'updates Redis price for all bots on the pair' do
+      bot = create(:bot, status: 'running', pair: 'ETHUSDT')
+
+      data = { topic: 'tickers.ETHUSDT', data: { symbol: 'ETHUSDT', lastPrice: '2500.0' } }
+      listener.send(:process_message, data)
+
+      expect(redis_state).to have_received(:update_price).with(bot.id, '2500.0')
+    end
+
+    it 'rescues errors from risk check without stopping' do
+      create(:bot, status: 'running', pair: 'ETHUSDT')
+      allow(risk_manager).to receive(:check!).and_raise(StandardError, 'boom')
+      allow(Rails.logger).to receive(:error)
+
+      data = { topic: 'tickers.ETHUSDT', data: { symbol: 'ETHUSDT', lastPrice: '1800.0' } }
+      expect { listener.send(:process_message, data) }.not_to raise_error
+      expect(Rails.logger).to have_received(:error).with(/Risk check failed/)
     end
   end
 

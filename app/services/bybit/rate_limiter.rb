@@ -31,8 +31,10 @@ module Bybit
       @redis = redis || Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'))
     end
 
-    def check!(bucket)
+    def check!(bucket, force: false)
       config = BUCKETS.fetch(bucket) { raise ArgumentError, "Unknown bucket: #{bucket}" }
+      return if force
+
       key = counter_key(bucket)
 
       allowed = @redis.eval(CHECK_SCRIPT, keys: [key], argv: [config[:limit], config[:window]])
@@ -50,6 +52,10 @@ module Bybit
 
       config = BUCKETS.fetch(bucket) { return }
       used = config[:limit] - remaining.to_i
+
+      if used.to_f / config[:limit] > 0.8
+        Rails.logger.warn("[RateLimiter] #{bucket} usage >80%: #{used}/#{config[:limit]}")
+      end
 
       key = counter_key(bucket)
       @redis.set(key, [used, 0].max)

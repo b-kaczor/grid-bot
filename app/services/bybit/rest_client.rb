@@ -64,7 +64,9 @@ module Bybit
 
     # Orders (auth required)
 
-    def place_order(symbol:, side:, order_type:, qty:, price: nil, order_link_id: nil, time_in_force: 'GTC')
+    def place_order(symbol:, side:, order_type:, qty:, price: nil,
+                    order_link_id: nil, time_in_force: 'GTC', emergency: false
+    )
       params = {
         category: 'spot',
         symbol:,
@@ -75,7 +77,7 @@ module Bybit
       params[:price] = price.to_s if price
       params[:orderLinkId] = order_link_id if order_link_id
       params[:timeInForce] = time_in_force
-      post('/v5/order/create', params, bucket: :place_order)
+      post('/v5/order/create', params, bucket: :place_order, force: emergency)
     end
 
     def batch_place_orders(symbol:, orders:)
@@ -93,8 +95,8 @@ module Bybit
       post('/v5/order/cancel', params, bucket: :cancel_order)
     end
 
-    def cancel_all_orders(symbol:)
-      post('/v5/order/cancel-all', { category: 'spot', symbol: }, bucket: :cancel_all_orders)
+    def cancel_all_orders(symbol:, emergency: false)
+      post('/v5/order/cancel-all', { category: 'spot', symbol: }, bucket: :cancel_all_orders, force: emergency)
     end
 
     # Safety
@@ -141,10 +143,10 @@ module Bybit
       raise Bybit::NetworkError, e.message
     end
 
-    def post(path, params, bucket:)
+    def post(path, params, bucket:, force: false)
       rate_bucket = BUCKET_MAP[bucket]
-      @rate_limiter.check!(rate_bucket)
-      @rate_limiter.check!(:ip_global) unless rate_bucket == :ip_global
+      @rate_limiter.check!(rate_bucket, force:)
+      @rate_limiter.check!(:ip_global, force:) unless rate_bucket == :ip_global
 
       timestamp = (Time.now.to_f * 1000).to_i
       json_body = Oj.dump(params, mode: :compat)

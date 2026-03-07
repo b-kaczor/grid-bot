@@ -198,8 +198,23 @@ RSpec.describe Bybit::RestClient do
 
       client.place_order(symbol: 'ETHUSDT', side: 'Buy', order_type: 'Limit', qty: 0.1, price: 2500)
 
-      expect(rate_limiter).to have_received(:check!).with(:order_write)
-      expect(rate_limiter).to have_received(:check!).with(:ip_global)
+      expect(rate_limiter).to have_received(:check!).with(:order_write, force: false)
+      expect(rate_limiter).to have_received(:check!).with(:ip_global, force: false)
+    end
+
+    it 'bypasses rate limiter with emergency: true' do
+      stub_request(:post, "#{base_url}/v5/order/create")
+        .to_return(status: 200, body: success_body({ orderId: '456' }).to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      client.place_order(
+        symbol: 'ETHUSDT', side: 'Sell', order_type: 'Market',
+        qty: 0.5, emergency: true
+      )
+
+      expect(rate_limiter).to have_received(:check!).with(:order_write, force: true)
+      expect(rate_limiter).to have_received(:check!).with(:ip_global, force: true)
     end
   end
 
@@ -275,6 +290,18 @@ RSpec.describe Bybit::RestClient do
       response = client.cancel_all_orders(symbol: 'ETHUSDT')
 
       expect(response).to be_success
+    end
+
+    it 'bypasses rate limiter with emergency: true' do
+      stub_request(:post, "#{base_url}/v5/order/cancel-all")
+        .to_return(status: 200, body: success_body.to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      client.cancel_all_orders(symbol: 'ETHUSDT', emergency: true)
+
+      expect(rate_limiter).to have_received(:check!).with(:order_batch, force: true)
+      expect(rate_limiter).to have_received(:check!).with(:ip_global, force: true)
     end
   end
 
