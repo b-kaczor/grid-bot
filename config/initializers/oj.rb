@@ -1,1 +1,3 @@
-Oj.mimic_JSON()
+# frozen_string_literal: true
+
+Oj.mimic_JSON

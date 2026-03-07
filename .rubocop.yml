@@ -1,0 +1,153 @@
+inherit_from: .rubocop_todo.yml
+
+plugins:
+  - rubocop-rails
+  - rubocop-performance
+  - rubocop-rspec
+  - rubocop-capybara
+
+AllCops:
+  NewCops: enable
+  SuggestExtensions:
+    rubocop-factory_bot: false
+    rubocop-rspec_rails: false
+  DisplayCopNames: true
+  Exclude:
+    - "db/schema.rb"
+    - "bin/**/*"
+    - "vendor/**/*"
+    - "frontends/app/node_modules/**/*"
+    - "spec/support/user_with_data_super_complex_context.rb"
+    - "lib/rithmic_generated_proto/**/*"
+
+Capybara/ClickLinkOrButtonStyle:
+  Enabled: false
+
+Capybara/NegationMatcher:
+  Enabled: false
+
+Capybara/RSpec/HaveSelector:
+  Enabled: false
+
+Capybara/SpecificFinders:
+  Enabled: false
+
+Capybara/SpecificActions:
+  Enabled: false
+
+Rails/FindById:
+  Enabled: false
+
+RSpec/NoExpectationExample:
+  Enabled: false
+
+Rails/I18nLocaleTexts:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/LeadingSubject:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/NamedSubject:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+Style/FetchEnvVar:
+  Enabled: false
+
+RSpec/DescribeClass:
+  Exclude:
+    - "spec/features/**/*"
+    - "spec/services/bybit/errors_spec.rb"
+
+RSpec/EmptyExampleGroup:
+  Exclude:
+    - "spec/features/**/*"
+
+Rails/RedundantPresenceValidationOnBelongsTo:
+  Enabled: false
+
+Metrics/BlockLength:
+  Exclude:
+    - "config/routes.rb"
+    - "spec/**/*"
+
+Layout/LineLength:
+  Exclude:
+    - "config/routes.rb"
+
+Layout/MultilineMethodCallBraceLayout:
+  EnforcedStyle: new_line
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
+Layout/MultilineMethodDefinitionBraceLayout:
+  EnforcedStyle: new_line
+
+Layout/MultilineOperationIndentation:
+  EnforcedStyle: indented
+
+Layout/MultilineHashKeyLineBreaks:
+  Enabled: true
+
+Layout/MultilineHashBraceLayout:
+  EnforcedStyle: new_line
+
+Layout/FirstArrayElementIndentation:
+  EnforcedStyle: consistent
+
+Layout/FirstMethodArgumentLineBreak:
+  Enabled: true
+
+Layout/FirstHashElementLineBreak:
+  Enabled: true
+
+Layout/FirstArrayElementLineBreak:
+  Enabled: true
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+RSpec/IndexedLet:
+  Enabled: false
+
+# Temporary disabled as it leads to too many changes
+# We can enable it later
+RSpec/MatchArray:
+  Enabled: false
+
+Rails/UnknownEnv:
+  Environments:
+    - production
+    - development
+    - test
+    - staging
+
+# We can enabled it after migration to ruby 3.4 and then we can use it in combinations with Style/ItBlockParameter
+Style/ItAssignment:
+  Enabled: false
+
+# Too many false positive examples of it, seems like we never understand what is predicate method
+Naming/PredicateMethod:
+  Enabled: false
+
+# Does not seems to be valid, check app/services/api_status/base.rb or app/services/broker_csv_parsers/think_or_swim.rb
+Lint/UselessDefaultValueArgument:
+  Enabled: false

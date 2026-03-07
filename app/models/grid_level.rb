@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class GridLevel < ApplicationRecord
   belongs_to :bot
   has_many :orders, dependent: :destroy

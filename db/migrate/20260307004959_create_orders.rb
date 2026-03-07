@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateOrders < ActiveRecord::Migration[7.1]
   def change
     create_table :orders do |t|
@@ -13,7 +15,7 @@ class CreateOrders < ActiveRecord::Migration[7.1]
       t.decimal :avg_fill_price, precision: 20, scale: 8
       t.decimal :fee, precision: 20, scale: 10, default: 0
       t.string :fee_coin
-      t.string :status, null: false, default: "pending"
+      t.string :status, null: false, default: 'pending'
       t.datetime :placed_at
       t.datetime :filled_at
       t.timestamps

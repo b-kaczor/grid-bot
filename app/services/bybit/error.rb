@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Bybit
   class Error < StandardError; end
   class AuthenticationError < Error; end

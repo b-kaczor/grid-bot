@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateBalanceSnapshots < ActiveRecord::Migration[7.1]
   def change
     create_table :balance_snapshots do |t|
@@ -8,7 +10,7 @@ class CreateBalanceSnapshots < ActiveRecord::Migration[7.1]
       t.decimal :current_price, precision: 20, scale: 8
       t.decimal :realized_profit, precision: 20, scale: 8
       t.decimal :unrealized_pnl, precision: 20, scale: 8
-      t.string :granularity, null: false, default: "fine"
+      t.string :granularity, null: false, default: 'fine'
       t.datetime :snapshot_at, null: false
       t.timestamps
     end

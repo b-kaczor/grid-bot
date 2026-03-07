@@ -19,7 +19,7 @@ module Exchange
     end
 
     # Orders (auth required)
-    def place_order(symbol:, side:, order_type:, qty:, price: nil, order_link_id: nil, time_in_force: "GTC")
+    def place_order(symbol:, side:, order_type:, qty:, price: nil, order_link_id: nil, time_in_force: 'GTC')
       raise NotImplementedError
     end
 

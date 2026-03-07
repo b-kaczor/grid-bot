@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 FactoryBot.define do
   factory :balance_snapshot do
     bot
@@ -7,7 +9,7 @@ FactoryBot.define do
     current_price { 2500.0 }
     realized_profit { 50.0 }
     unrealized_pnl { 10.0 }
-    granularity { "fine" }
+    granularity { 'fine' }
     snapshot_at { Time.current }
   end
 end

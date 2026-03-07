@@ -1,13 +1,15 @@
-require "rails_helper"
+# frozen_string_literal: true
+
+require 'rails_helper'
 
 RSpec.describe GridLevel, type: :model do
-  describe "associations" do
+  describe 'associations' do
     it { is_expected.to belong_to(:bot) }
     it { is_expected.to have_many(:orders).dependent(:destroy) }
     it { is_expected.to have_many(:trades).dependent(:destroy) }
   end
 
-  describe "validations" do
+  describe 'validations' do
     subject { build(:grid_level) }
 
     it { is_expected.to validate_presence_of(:level_index) }
@@ -22,12 +24,12 @@ RSpec.describe GridLevel, type: :model do
     it { is_expected.to validate_numericality_of(:cycle_count).is_greater_than_or_equal_to(0) }
   end
 
-  describe "constants" do
-    it "defines SIDES" do
+  describe 'constants' do
+    it 'defines SIDES' do
       expect(GridLevel::SIDES).to eq(%w[buy sell])
     end
 
-    it "defines STATUSES" do
+    it 'defines STATUSES' do
       expect(GridLevel::STATUSES).to eq(%w[pending active filled skipped])
     end
   end

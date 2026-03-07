@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Bot < ApplicationRecord
   belongs_to :exchange_account
   has_many :grid_levels, dependent: :destroy
@@ -21,7 +23,7 @@ class Bot < ApplicationRecord
   validates :stop_reason, inclusion: { in: STOP_REASONS }, allow_nil: true
   validate :upper_price_greater_than_lower
 
-  scope :running, -> { where(status: "running") }
+  scope :running, -> { where(status: 'running') }
   scope :active, -> { where(status: %w[running paused initializing]) }
 
   private
@@ -29,6 +31,6 @@ class Bot < ApplicationRecord
   def upper_price_greater_than_lower
     return unless upper_price && lower_price
 
-    errors.add(:upper_price, "must be greater than lower price") unless upper_price > lower_price
+    errors.add(:upper_price, 'must be greater than lower price') unless upper_price > lower_price
   end
 end

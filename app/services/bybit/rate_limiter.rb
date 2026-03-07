@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "error"
+require_relative 'error'
 
 module Bybit
   class RateLimiter
     BUCKETS = {
       order_write: { limit: 20, window: 1 },
       order_batch: { limit: 10, window: 1 },
-      ip_global:   { limit: 600, window: 5 }
+      ip_global: { limit: 600, window: 5 },
     }.freeze
 
     # Lua script for atomic check-and-increment.
@@ -28,7 +28,7 @@ module Bybit
     LUA
 
     def initialize(redis: nil)
-      @redis = redis || Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
+      @redis = redis || Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'))
     end
 
     def check!(bucket)
@@ -37,14 +37,14 @@ module Bybit
 
       allowed = @redis.eval(CHECK_SCRIPT, keys: [key], argv: [config[:limit], config[:window]])
 
-      raise Bybit::RateLimitError, "Rate limit exceeded for #{bucket}" if allowed == 0
+      raise Bybit::RateLimitError, "Rate limit exceeded for #{bucket}" if allowed.zero?
     end
 
     def update_from_headers(bucket, headers)
       return unless headers
 
-      remaining = headers["X-Bapi-Limit-Status"]
-      reset_ts  = headers["X-Bapi-Limit-Reset-Timestamp"]
+      remaining = headers['X-Bapi-Limit-Status']
+      reset_ts  = headers['X-Bapi-Limit-Reset-Timestamp']
 
       return unless remaining
 

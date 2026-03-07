@@ -27,16 +27,16 @@ class SnapshotRetentionJob
     oldest = HOURLY_RETENTION.days.ago
 
     fine_snapshots = bot.balance_snapshots
-                        .fine
-                        .where(snapshot_at: oldest..cutoff)
-                        .order(:snapshot_at)
+      .fine
+      .where(snapshot_at: oldest..cutoff)
+      .order(:snapshot_at)
 
     fine_snapshots.group_by { |s| s.snapshot_at.beginning_of_hour }.each do |hour, snapshots|
       next if bot.balance_snapshots.hourly.exists?(snapshot_at: hour..hour.end_of_hour)
 
       # Pick the snapshot closest to the top of the hour
       representative = snapshots.min_by { |s| (s.snapshot_at - hour).abs }
-      create_aggregate(representative, granularity: "hourly", snapshot_at: hour)
+      create_aggregate(representative, granularity: 'hourly', snapshot_at: hour)
     end
   end
 
@@ -45,9 +45,9 @@ class SnapshotRetentionJob
     cutoff = HOURLY_RETENTION.days.ago
 
     hourly_snapshots = bot.balance_snapshots
-                          .hourly
-                          .where("snapshot_at < ?", cutoff)
-                          .order(:snapshot_at)
+      .hourly
+      .where(snapshot_at: ...cutoff)
+      .order(:snapshot_at)
 
     hourly_snapshots.group_by { |s| s.snapshot_at.to_date }.each do |date, snapshots|
       day_start = date.beginning_of_day
@@ -57,16 +57,16 @@ class SnapshotRetentionJob
 
       # Pick the last snapshot of the day
       representative = snapshots.max_by(&:snapshot_at)
-      create_aggregate(representative, granularity: "daily", snapshot_at: representative.snapshot_at)
+      create_aggregate(representative, granularity: 'daily', snapshot_at: representative.snapshot_at)
     end
   end
 
   def purge_stale_fine(bot)
-    bot.balance_snapshots.fine.where("snapshot_at < ?", FINE_RETENTION.days.ago).delete_all
+    bot.balance_snapshots.fine.where(snapshot_at: ...FINE_RETENTION.days.ago).delete_all
   end
 
   def purge_stale_hourly(bot)
-    bot.balance_snapshots.hourly.where("snapshot_at < ?", HOURLY_RETENTION.days.ago).delete_all
+    bot.balance_snapshots.hourly.where(snapshot_at: ...HOURLY_RETENTION.days.ago).delete_all
   end
 
   def create_aggregate(source, granularity:, snapshot_at:)

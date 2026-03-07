@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "bigdecimal"
-require "bigdecimal/math"
+require 'bigdecimal'
+require 'bigdecimal/math'
 
 module Grid
   class Calculator
-    NEUTRAL_ZONE_THRESHOLD = BigDecimal("0.001")
+    NEUTRAL_ZONE_THRESHOLD = BigDecimal('0.001')
 
     class ValidationError < StandardError; end
 
@@ -14,7 +14,8 @@ module Grid
 
     def initialize(lower:, upper:, count:, spacing: :arithmetic,
                    tick_size: nil, base_precision: nil,
-                   min_order_amt: nil, min_order_qty: nil)
+                   min_order_amt: nil, min_order_qty: nil
+    )
       @lower = BigDecimal(lower.to_s)
       @upper = BigDecimal(upper.to_s)
       @count = count
@@ -32,7 +33,7 @@ module Grid
     def classify_levels(current_price:)
       price = BigDecimal(current_price.to_s)
 
-      levels.each_with_index.each_with_object({}) do |(level, index), result|
+      levels.each_with_index.with_object({}) do |(level, index), result|
         distance = (level - price).abs / price
         result[index] = if distance < NEUTRAL_ZONE_THRESHOLD
                           :skip
@@ -50,14 +51,14 @@ module Grid
       classification = classify_levels(current_price: price)
 
       buy_count = classification.count { |_, side| side == :buy }
-      raise ValidationError, "No buy levels found" if buy_count.zero?
+      raise ValidationError, 'No buy levels found' if buy_count.zero?
 
       qty = inv / buy_count / price
       base_precision ? qty.truncate(base_precision) : qty
     end
 
     def validate!(investment: nil, current_price: nil)
-      raise ValidationError, "investment and current_price are required" unless investment && current_price
+      raise ValidationError, 'investment and current_price are required' unless investment && current_price
 
       qty = quantity_per_level(investment:, current_price:)
 
@@ -97,8 +98,8 @@ module Grid
     end
 
     def compute_geometric
-      ratio = (upper / lower) ** (BigDecimal("1") / count)
-      (0..count).map { |i| lower * (ratio ** i) }
+      ratio = (upper / lower)**(BigDecimal('1') / count)
+      (0..count).map { |i| lower * (ratio**i) }
     end
 
     def round_and_clamp(price)

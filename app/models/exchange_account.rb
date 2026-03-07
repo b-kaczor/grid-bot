@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ExchangeAccount < ApplicationRecord
   has_many :bots, dependent: :restrict_with_error
 

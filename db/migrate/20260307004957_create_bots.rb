@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateBots < ActiveRecord::Migration[7.1]
   def change
     create_table :bots do |t|
@@ -12,7 +14,7 @@ class CreateBots < ActiveRecord::Migration[7.1]
       t.decimal :lower_price, precision: 20, scale: 8, null: false
       t.decimal :upper_price, precision: 20, scale: 8, null: false
       t.integer :grid_count, null: false
-      t.string :spacing_type, null: false, default: "arithmetic"
+      t.string :spacing_type, null: false, default: 'arithmetic'
       t.decimal :investment_amount, precision: 20, scale: 8, null: false
 
       # Instrument constraints (fetched from exchange on init)
@@ -23,7 +25,7 @@ class CreateBots < ActiveRecord::Migration[7.1]
       t.integer :quote_precision
 
       # Lifecycle
-      t.string :status, null: false, default: "pending"
+      t.string :status, null: false, default: 'pending'
       t.string :stop_reason
 
       # Risk management
