@@ -18,6 +18,10 @@ export interface Bot {
   trade_count?: number;
   active_levels?: number;
   uptime_seconds?: number;
+  stop_loss_price?: string | null;
+  take_profit_price?: string | null;
+  trailing_up_enabled: boolean;
+  stop_reason?: string | null;
   created_at: string;
 }
 
@@ -47,6 +51,9 @@ export interface CreateBotParams {
   grid_count: number;
   spacing_type: 'arithmetic' | 'geometric';
   investment_amount: string;
+  stop_loss_price?: string;
+  take_profit_price?: string;
+  trailing_up_enabled?: boolean;
 }
 
 // Re-export Trade for convenience

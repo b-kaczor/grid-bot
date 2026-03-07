@@ -3,12 +3,17 @@ export interface GridParameters {
   upperPrice: string;
   gridCount: number;
   spacingType: 'arithmetic' | 'geometric';
+  stopLossPrice: string;
+  takeProfitPrice: string;
+  trailingUpEnabled: boolean;
 }
 
 interface ValidationResult {
   lowerPrice?: string;
   upperPrice?: string;
   gridCount?: string;
+  stopLossPrice?: string;
+  takeProfitPrice?: string;
 }
 
 export const validateParameters = (params: GridParameters, lastPrice: string): ValidationResult => {
@@ -37,6 +42,24 @@ export const validateParameters = (params: GridParameters, lastPrice: string): V
     errors.gridCount = 'Minimum 2 grid levels';
   }
 
+  if (params.stopLossPrice !== '') {
+    const sl = parseFloat(params.stopLossPrice);
+    if (isNaN(sl) || sl <= 0) {
+      errors.stopLossPrice = 'Must be a positive number';
+    } else if (!isNaN(lower) && sl >= lower) {
+      errors.stopLossPrice = 'Must be below lower price';
+    }
+  }
+
+  if (params.takeProfitPrice !== '') {
+    const tp = parseFloat(params.takeProfitPrice);
+    if (isNaN(tp) || tp <= 0) {
+      errors.takeProfitPrice = 'Must be a positive number';
+    } else if (!isNaN(upper) && tp <= upper) {
+      errors.takeProfitPrice = 'Must be above upper price';
+    }
+  }
+
   return errors;
 };
 
@@ -50,5 +73,8 @@ export const computeDefaults = (lastPrice: string): GridParameters => {
     upperPrice: (price * 1.1).toFixed(2),
     gridCount: 20,
     spacingType: 'arithmetic',
+    stopLossPrice: '',
+    takeProfitPrice: '',
+    trailingUpEnabled: false,
   };
 };
