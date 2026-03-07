@@ -15,6 +15,8 @@ import { useBotChannel } from '../cable/useBotChannel.ts';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 import { ConnectionBanner } from '../components/ConnectionBanner.tsx';
 import { TradeHistoryTable } from '../components/TradeHistoryTable.tsx';
+import { GridVisualization } from '../components/GridVisualization.tsx';
+import { PerformanceCharts } from '../components/PerformanceCharts.tsx';
 
 const formatUptime = (seconds: number): string => {
   const d = Math.floor(seconds / 86400);
@@ -197,17 +199,18 @@ export const BotDetail = () => {
             </Grid>
           </Grid>
 
-          {/* Placeholder for GridVisualization + PerformanceCharts (T63) */}
+          {/* Grid Visualization + Performance Charts */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card variant="outlined" sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="text.secondary">Grid Visualization (coming soon)</Typography>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Grid Levels</Typography>
+                  <GridVisualization botId={botId} />
+                </CardContent>
               </Card>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card variant="outlined" sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="text.secondary">Performance Charts (coming soon)</Typography>
-              </Card>
+              <PerformanceCharts botId={botId} />
             </Grid>
           </Grid>
 
