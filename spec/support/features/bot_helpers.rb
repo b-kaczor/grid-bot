@@ -1,15 +1,25 @@
 # frozen_string_literal: true
 
-# Thread-safe MockRedis singleton for feature specs.
-# Both the test thread and Puma server thread share this instance.
-module FeatureRedisOverride
-  def new(**_opts)
-    Features::BotHelpers.mock_redis
-  end
-end
-
 module Features
+  # Thread-safe MockRedis singleton for feature specs.
+  # Both the test thread and Puma server thread share this instance.
+  module RedisOverride
+    def new(**_opts)
+      Features::BotHelpers.mock_redis
+    end
+  end
+
   module BotHelpers
+    module ClassMethods
+      def mock_redis_instance
+        Features::BotHelpers.mock_redis
+      end
+    end
+
+    def self.included(base)
+      base.extend(ClassMethods)
+    end
+
     # Create a running bot with seeded grid levels and Redis state.
     def create_running_bot(exchange_account:, pair: 'ETHUSDT', **overrides)
       bot = create(
@@ -87,21 +97,6 @@ module Features
   end
 end
 
-# Helper to access mock_redis from instance context
-module Features
-  module BotHelpers
-    module ClassMethods
-      def mock_redis_instance
-        Features::BotHelpers.mock_redis
-      end
-    end
-
-    def self.included(base)
-      base.extend(ClassMethods)
-    end
-  end
-end
-
 RSpec.configure do |config|
   config.include Features::BotHelpers, type: :feature
 
@@ -109,7 +104,7 @@ RSpec.configure do |config|
   config.before(:suite) do
     next unless RSpec.configuration.files_to_run.any? { |f| f.include?('spec/features') }
 
-    Redis.singleton_class.prepend(FeatureRedisOverride)
+    Redis.singleton_class.prepend(Features::RedisOverride)
   end
 
   config.before(:each, type: :feature) do
