@@ -25,9 +25,11 @@ module Api
           accounts = data[:list] || []
           accounts.flat_map do |account|
             (account[:coin] || []).map do |coin|
+              available = coin[:availableToWithdraw]
+              available = coin[:walletBalance] if available.blank?
               {
                 coin: coin[:coin],
-                available: coin[:availableToWithdraw],
+                available: available,
                 locked: coin[:locked],
                 total: coin[:walletBalance],
               }

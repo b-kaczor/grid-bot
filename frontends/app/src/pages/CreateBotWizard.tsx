@@ -36,7 +36,7 @@ export const CreateBotWizard = () => {
     takeProfitPrice: '',
     trailingUpEnabled: false,
   });
-  const [investmentPct, setInvestmentPct] = useState(50);
+  const [investmentAmount, setInvestmentAmount] = useState('');
 
   const handleParamsChange = useCallback((next: GridParameters) => {
     setParams(next);
@@ -52,6 +52,11 @@ export const CreateBotWizard = () => {
     if (activeStep === 0 && selectedPair && params.lowerPrice === '') {
       setParams(computeDefaults(selectedPair.last_price));
     }
+    if (activeStep === 1 && investmentAmount === '' && balances) {
+      const usdtBalance = balances.find((b) => b.coin === 'USDT');
+      const available = parseFloat(usdtBalance?.available ?? '0');
+      setInvestmentAmount((available * 0.5).toFixed(2));
+    }
     if (activeStep < STEPS.length - 1) {
       setActiveStep((s) => s + 1);
     }
@@ -66,7 +71,8 @@ export const CreateBotWizard = () => {
   const computeInvestmentAmount = (): string => {
     const usdtBalance = balances?.find((b) => b.coin === 'USDT');
     const available = parseFloat(usdtBalance?.available ?? '0');
-    return (available * (investmentPct / 100)).toFixed(2);
+    const amount = parseFloat(investmentAmount) || 0;
+    return Math.min(Math.max(amount, 0), available).toFixed(2);
   };
 
   const handleSubmit = () => {
@@ -132,8 +138,8 @@ export const CreateBotWizard = () => {
           <StepInvestment
             pair={selectedPair}
             params={params}
-            investmentPct={investmentPct}
-            onInvestmentPctChange={setInvestmentPct}
+            investmentAmount={investmentAmount}
+            onInvestmentAmountChange={setInvestmentAmount}
           />
         </Box>
       )}

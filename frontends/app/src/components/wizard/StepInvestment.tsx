@@ -7,6 +7,8 @@ import {
   Skeleton,
   Alert,
   Divider,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import { useExchangeBalance } from '../../api/exchange.ts';
 import type { TradingPair } from '../../types/exchange.ts';
@@ -15,15 +17,15 @@ import type { GridParameters } from './gridParameters.ts';
 interface StepInvestmentProps {
   pair: TradingPair;
   params: GridParameters;
-  investmentPct: number;
-  onInvestmentPctChange: (pct: number) => void;
+  investmentAmount: string;
+  onInvestmentAmountChange: (amount: string) => void;
 }
 
 export const StepInvestment = ({
   pair,
   params,
-  investmentPct,
-  onInvestmentPctChange,
+  investmentAmount,
+  onInvestmentAmountChange,
 }: StepInvestmentProps) => {
   const { data: balances, isLoading, isError } = useExchangeBalance();
 
@@ -37,10 +39,38 @@ export const StepInvestment = ({
 
   const usdtBalance = balances?.find((b) => b.coin === 'USDT');
   const available = parseFloat(usdtBalance?.available ?? '0');
-  const investmentAmount = available * (investmentPct / 100);
+  const amount = parseFloat(investmentAmount) || 0;
+  const clamped = Math.min(Math.max(amount, 0), available);
+  const sliderPct = available > 0 ? (clamped / available) * 100 : 0;
   const lastPrice = parseFloat(pair.last_price);
-  const qtyPerLevel = params.gridCount > 0 ? investmentAmount / params.gridCount / lastPrice : 0;
+  const qtyPerLevel = params.gridCount > 0 ? clamped / params.gridCount / lastPrice : 0;
   const feeImpact = params.gridCount * 2 * qtyPerLevel * lastPrice * 0.001;
+
+  const handleSliderChange = (_e: Event, val: number | number[]) => {
+    const pct = val as number;
+    const newAmount = (available * pct) / 100;
+    onInvestmentAmountChange(newAmount.toFixed(2));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === '' || /^\d*\.?\d{0,2}$/.test(raw)) {
+      onInvestmentAmountChange(raw);
+    }
+  };
+
+  const handleInputBlur = () => {
+    if (investmentAmount === '') {
+      onInvestmentAmountChange('0');
+      return;
+    }
+    const parsed = parseFloat(investmentAmount);
+    if (isNaN(parsed) || parsed < 0) {
+      onInvestmentAmountChange('0');
+    } else if (parsed > available) {
+      onInvestmentAmountChange(available.toFixed(2));
+    }
+  };
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -48,18 +78,34 @@ export const StepInvestment = ({
         Available USDT: {available.toFixed(2)}
       </Typography>
 
-      <Box sx={{ mt: 2 }}>
-        <Typography gutterBottom>
-          Investment: {investmentPct}% ({investmentAmount.toFixed(2)} USDT)
+      <TextField
+        label="Investment Amount"
+        value={investmentAmount}
+        onChange={handleInputChange}
+        onBlur={handleInputBlur}
+        size="small"
+        sx={{ mt: 1, mb: 1 }}
+        slotProps={{
+          input: {
+            endAdornment: <InputAdornment position="end">USDT</InputAdornment>,
+          },
+        }}
+        data-testid="investment-amount-input"
+      />
+
+      <Box sx={{ mt: 1 }}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          {Math.round(sliderPct)}% of available balance
         </Typography>
         <Slider
-          value={investmentPct}
-          onChange={(_e, val) => onInvestmentPctChange(val as number)}
-          min={10}
+          value={sliderPct}
+          onChange={handleSliderChange}
+          min={0}
           max={100}
           step={1}
           valueLabelDisplay="auto"
-          valueLabelFormat={(v) => `${v}%`}
+          valueLabelFormat={(v) => `${Math.round(v)}%`}
+          data-testid="investment-slider"
         />
       </Box>
 
@@ -88,7 +134,7 @@ export const StepInvestment = ({
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="body2" color="text.secondary">Total Investment</Typography>
-            <Typography variant="body2">{investmentAmount.toFixed(2)} USDT</Typography>
+            <Typography variant="body2">{clamped.toFixed(2)} USDT</Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="body2" color="text.secondary">Qty per Level</Typography>
