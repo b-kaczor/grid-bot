@@ -8,6 +8,7 @@ module Bybit
       batch_place_orders: :order_batch,
       cancel_all_orders: :order_batch,
       get_open_orders: :order_batch,
+      get_order_history: :order_batch,
       get_wallet_balance: :ip_global,
       get_tickers: :ip_global,
       get_instruments_info: :ip_global,
@@ -42,6 +43,15 @@ module Bybit
       params = { accountType: 'UNIFIED' }
       params[:coin] = coin if coin
       get('/v5/account/wallet-balance', params, authenticated: true, bucket: :get_wallet_balance)
+    end
+
+    def get_order_history(symbol:, order_id: nil, order_link_id: nil, cursor: nil, limit: 50)
+      params = { category: 'spot', symbol: }
+      params[:orderId] = order_id if order_id
+      params[:orderLinkId] = order_link_id if order_link_id
+      params[:cursor] = cursor if cursor
+      params[:limit] = limit
+      get('/v5/order/history', params, authenticated: true, bucket: :get_order_history)
     end
 
     def get_open_orders(symbol:, cursor: nil, limit: 50)

@@ -39,6 +39,10 @@ module Exchange
       raise NotImplementedError
     end
 
+    def get_order_history(symbol:, order_id: nil, order_link_id: nil, cursor: nil, limit: 50)
+      raise NotImplementedError
+    end
+
     # Safety
     def set_dcp(time_window:)
       raise NotImplementedError

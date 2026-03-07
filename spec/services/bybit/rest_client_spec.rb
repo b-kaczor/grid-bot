@@ -278,6 +278,72 @@ RSpec.describe Bybit::RestClient do
     end
   end
 
+  describe '#get_order_history' do
+    it 'GETs /v5/order/history with auth headers' do
+      stub_request(:get, "#{base_url}/v5/order/history")
+        .with(query: hash_including(category: 'spot', symbol: 'ETHUSDT'),
+              headers: { 'X-BAPI-API-KEY' => api_key }
+             )
+        .to_return(status: 200, body: success_body({ list: [{ orderId: '999', orderStatus: 'Filled' }] }).to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      response = client.get_order_history(symbol: 'ETHUSDT')
+
+      expect(response).to be_success
+      expect(response.data[:list].first[:orderId]).to eq('999')
+    end
+
+    it 'passes order_id filter' do
+      stub_request(:get, "#{base_url}/v5/order/history")
+        .with(query: hash_including(orderId: '123'))
+        .to_return(status: 200, body: success_body({ list: [] }).to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      response = client.get_order_history(symbol: 'ETHUSDT', order_id: '123')
+
+      expect(response).to be_success
+    end
+
+    it 'passes order_link_id filter' do
+      stub_request(:get, "#{base_url}/v5/order/history")
+        .with(query: hash_including(orderLinkId: 'g1-L0-B-0'))
+        .to_return(status: 200, body: success_body({ list: [] }).to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      response = client.get_order_history(symbol: 'ETHUSDT', order_link_id: 'g1-L0-B-0')
+
+      expect(response).to be_success
+    end
+
+    it 'passes cursor for pagination' do
+      stub_request(:get, "#{base_url}/v5/order/history")
+        .with(query: hash_including(cursor: 'page2'))
+        .to_return(status: 200, body: success_body({ list: [] }).to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      response = client.get_order_history(symbol: 'ETHUSDT', cursor: 'page2')
+
+      expect(response).to be_success
+    end
+
+    it 'calls rate limiter with order_batch bucket' do
+      stub_request(:get, "#{base_url}/v5/order/history")
+        .with(query: hash_including(category: 'spot'))
+        .to_return(status: 200, body: success_body({ list: [] }).to_json,
+                   headers: { 'Content-Type' => 'application/json' }
+        )
+
+      client.get_order_history(symbol: 'ETHUSDT')
+
+      expect(rate_limiter).to have_received(:check!).with(:order_batch)
+      expect(rate_limiter).to have_received(:check!).with(:ip_global)
+    end
+  end
+
   describe '#get_open_orders' do
     it 'GETs /v5/order/realtime with auth headers' do
       stub_request(:get, "#{base_url}/v5/order/realtime")
