@@ -1,14 +1,30 @@
 # frozen_string_literal: true
 
+require 'logger'
 require_relative '../../../app/services/bybit/rate_limiter'
+
+# Stub Rails.logger if Rails is not loaded (standalone spec)
+unless defined?(Rails)
+  module Rails
+    def self.logger
+      @logger ||= Logger.new(File::NULL)
+    end
+
+    def self.logger=(logger)
+      @logger = logger
+    end
+  end
+end
 
 RSpec.describe Bybit::RateLimiter do
   let(:redis) { MockRedis.new }
+  let(:logger) { instance_double(Logger, warn: nil, info: nil, debug: nil) }
 
   subject(:limiter) { described_class.new(redis:) }
 
   # Minimal mock Redis that supports the operations used by RateLimiter
   before do
+    Rails.logger = logger
     stub_const(
       'MockRedis', Class.new do
                      def initialize
@@ -88,6 +104,18 @@ RSpec.describe Bybit::RateLimiter do
       20.times { limiter.check!(:order_write) }
       expect { limiter.check!(:order_batch) }.not_to raise_error
     end
+
+    context 'with force: true' do
+      it 'bypasses rate limit when bucket is exhausted' do
+        20.times { limiter.check!(:order_write) }
+        expect { limiter.check!(:order_write, force: true) }.not_to raise_error
+      end
+
+      it 'still validates the bucket name' do
+        expect { limiter.check!(:unknown, force: true) }
+          .to raise_error(ArgumentError, /Unknown bucket/)
+      end
+    end
   end
 
   describe '#update_from_headers' do
@@ -134,6 +162,20 @@ RSpec.describe Bybit::RateLimiter do
       limiter.update_from_headers(:order_write, headers)
 
       expect(redis.raw_get('bybit:rate:order_write:count')).to eq(0)
+    end
+
+    it 'logs warning when usage exceeds 80%' do
+      # order_write limit is 20, remaining=3 means used=17, usage=85%
+      headers = { 'X-Bapi-Limit-Status' => '3' }
+      limiter.update_from_headers(:order_write, headers)
+      expect(logger).to have_received(:warn).with(%r{RateLimiter.*order_write.*>80%.*17/20})
+    end
+
+    it 'does not log warning when usage is at or below 80%' do
+      # order_write limit is 20, remaining=4 means used=16, usage=80%
+      headers = { 'X-Bapi-Limit-Status' => '4' }
+      limiter.update_from_headers(:order_write, headers)
+      expect(logger).not_to have_received(:warn)
     end
   end
 
