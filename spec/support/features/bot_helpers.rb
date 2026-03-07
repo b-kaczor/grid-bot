@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# Thread-safe MockRedis singleton for feature specs.
+# Both the test thread and Puma server thread share this instance.
+module FeatureRedisOverride
+  def new(**_opts)
+    Features::BotHelpers.mock_redis
+  end
+end
+
 module Features
   module BotHelpers
     # Create a running bot with seeded grid levels and Redis state.
@@ -24,7 +32,7 @@ module Features
 
     # Seed the Redis state for a bot (stats, price, levels).
     def seed_bot_redis_state(bot)
-      redis_state = setup_mock_redis_state
+      redis_state = Grid::RedisState.new(redis: self.class.mock_redis_instance)
       redis_state.seed(bot)
       redis_state.update_price(bot.id, '2500.00')
       seed_stats(bot)
@@ -38,21 +46,21 @@ module Features
       redis_state
     end
 
-    private
-
-    def setup_mock_redis_state
-      mock_redis = MockRedis.new
-      allow(Redis).to receive(:new).and_return(mock_redis)
-
-      redis_state = Grid::RedisState.new(redis: mock_redis)
-      allow(Grid::RedisState).to receive(:new).and_return(redis_state)
-      redis_state
+    # Class-level mock redis instance shared across threads (test + Puma)
+    def self.mock_redis
+      @mock_redis ||= MockRedis.new
     end
 
+    def self.reset_mock_redis!
+      @mock_redis = MockRedis.new
+    end
+
+    private
+
     def seed_stats(bot)
-      mock_redis = Redis.new
-      mock_redis.hset("grid:#{bot.id}:stats", 'realized_profit', '50.00')
-      mock_redis.hset("grid:#{bot.id}:stats", 'trade_count', bot.trades.count.to_s)
+      redis = Features::BotHelpers.mock_redis
+      redis.hset("grid:#{bot.id}:stats", 'realized_profit', '50.00')
+      redis.hset("grid:#{bot.id}:stats", 'trade_count', bot.trades.count.to_s)
     end
 
     def create_chart_snapshots(bot)
@@ -79,6 +87,32 @@ module Features
   end
 end
 
+# Helper to access mock_redis from instance context
+module Features
+  module BotHelpers
+    module ClassMethods
+      def mock_redis_instance
+        Features::BotHelpers.mock_redis
+      end
+    end
+
+    def self.included(base)
+      base.extend(ClassMethods)
+    end
+  end
+end
+
 RSpec.configure do |config|
   config.include Features::BotHelpers, type: :feature
+
+  # Prepend Redis.new override for feature specs so Puma thread uses MockRedis
+  config.before(:suite) do
+    next unless RSpec.configuration.files_to_run.any? { |f| f.include?('spec/features') }
+
+    Redis.singleton_class.prepend(FeatureRedisOverride)
+  end
+
+  config.before(:each, type: :feature) do
+    Features::BotHelpers.reset_mock_redis!
+  end
 end

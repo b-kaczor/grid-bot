@@ -35,7 +35,7 @@
 2. Verify the wizard renders with the "Create Bot" heading
 3. Verify the stepper shows three steps: "Select Pair", "Set Parameters", "Investment"
 4. Verify "Select Pair" is the active step
-5. Verify the `[data-testid="wizard-step-1"]` container is visible
+5. Verify the `[data-testid="wizard-step-0"]` container is visible
 6. Verify the instructional text "Search and select a trading pair to begin." is present
 7. Verify the "Back" button (`[data-testid="wizard-back-btn"]`) is disabled
 8. Verify the "Next" button (`[data-testid="wizard-next-btn"]`) is disabled (no pair selected)
@@ -100,7 +100,7 @@ end
 
 **Steps**:
 1. Complete step 1: select ETHUSDT, click "Next"
-2. Verify the wizard is now on step 2 (`[data-testid="wizard-step-2"]` visible)
+2. Verify the wizard is now on step 2 (`[data-testid="wizard-step-1"]` visible)
 3. Verify the pair summary "ETHUSDT — Last price: 2500.00" is displayed
 4. Verify the lower price input (`[data-testid="input-lower-price"]`) is pre-filled with a default value
 5. Verify the upper price input (`[data-testid="input-upper-price"]`) is pre-filled with a default value
@@ -136,7 +136,7 @@ end
 - Clicking "Back" from step 2: returns to step 1 with the previously selected pair still shown
 
 **Playwright Hints**:
-- Selector: `[data-testid="wizard-step-2"]`
+- Selector: `[data-testid="wizard-step-1"]`
 - Selector: `[data-testid="input-lower-price"]`, `[data-testid="input-upper-price"]`
 - Selector: `[data-testid="input-grid-count"]` (slider — may require `.fill()` or drag interaction)
 - Validation error: find the helper text sibling of the MUI TextField — `page.locator('[data-testid="input-upper-price"]').locator('..').locator('p.MuiFormHelperText-root')` or use `toContainText` on the containing form control
@@ -152,7 +152,7 @@ it 'shows validation errors for invalid parameters and enables Next for valid on
   # ... complete step 1 ...
   find("[data-testid='wizard-next-btn']").click
 
-  expect(page).to have_selector("[data-testid='wizard-step-2']")
+  expect(page).to have_selector("[data-testid='wizard-step-1']")
 
   fill_in_by_testid('input-lower-price', with: '2500.00')
   fill_in_by_testid('input-upper-price', with: '2500.00')
@@ -181,7 +181,7 @@ end
 
 **Steps**:
 1. Complete steps 1 and 2, click "Next" to reach step 3
-2. Verify the wizard is on step 3 (`[data-testid="wizard-step-3"]` visible)
+2. Verify the wizard is on step 3 (`[data-testid="wizard-step-2"]` visible)
 3. Verify "Available USDT: 10000.00" text is displayed
 4. Verify the investment slider (`[data-testid="input-investment-pct"]`) is present
 5. Verify the investment label reads "Investment: 50% (5000.00 USDT)" (default is 50%)
@@ -212,7 +212,7 @@ end
 - Stop-loss and take-profit set in step 2: they are not shown in the Order Summary (summary only shows range, grid count, spacing, investment)
 
 **Playwright Hints**:
-- Selector: `[data-testid="wizard-step-3"]`, `[data-testid="order-summary"]`, `[data-testid="wizard-submit-btn"]`
+- Selector: `[data-testid="wizard-step-2"]`, `[data-testid="order-summary"]`, `[data-testid="wizard-submit-btn"]`
 - Slider interaction options:
   1. JavaScript: `page.evaluate('document.querySelector("[data-testid=input-investment-pct]").value = 80')` then trigger change event
   2. Keyboard: focus the slider element, press ArrowRight multiple times
@@ -227,7 +227,7 @@ it 'shows the order summary with correct values from previous steps' do
   # Assume steps 1 and 2 completed in `before` block
   # ... navigate to step 3 ...
 
-  expect(page).to have_selector("[data-testid='wizard-step-3']")
+  expect(page).to have_selector("[data-testid='wizard-step-2']")
   expect(page).to have_content('Available USDT: 10000.00')
 
   within("[data-testid='order-summary']") do

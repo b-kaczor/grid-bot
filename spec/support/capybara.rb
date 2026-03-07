@@ -21,3 +21,10 @@ Capybara.default_driver    = :rack_test
 Capybara.javascript_driver = :cuprite
 Capybara.default_max_wait_time = 5
 Capybara.server = :puma, { Silent: true }
+
+RSpec.configure do |config|
+  # All feature specs need the JS driver (Cuprite) for the React SPA
+  config.before(:each, type: :feature) do
+    Capybara.current_driver = :cuprite
+  end
+end

@@ -30,10 +30,11 @@ RSpec.configure do |config|
 
     # Symlink dist/assets -> public/vite-assets (avoids collision with Rails asset pipeline)
     FileUtils.rm_rf(VITE_ASSETS)
-    FileUtils.ln_s(VITE_DIST_DIR.join('assets'), VITE_ASSETS)
+    FileUtils.ln_s(VITE_DIST_DIR.join('vite-assets'), VITE_ASSETS)
 
-    # Insert SPA middleware for client-side routing fallback
-    Rails.application.config.middleware.insert_before(0, RackSpaMiddleware, index_path: VITE_INDEX.to_s)
+    # Wrap the Capybara app with SPA middleware for client-side routing fallback.
+    # Cannot use Rails.application.config.middleware because the stack is frozen after boot.
+    Capybara.app = RackSpaMiddleware.new(Rails.application, index_path: VITE_INDEX.to_s)
   end
 
   config.after(:suite) do
