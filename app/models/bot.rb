@@ -7,7 +7,7 @@ class Bot < ApplicationRecord
   has_many :trades, dependent: :destroy
   has_many :balance_snapshots, dependent: :destroy
 
-  STATUSES = %w[pending initializing running paused stopped error].freeze
+  STATUSES = %w[pending initializing running paused stopping stopped error].freeze
   STOP_REASONS = %w[user stop_loss take_profit error maintenance].freeze
   SPACING_TYPES = %w[arithmetic geometric].freeze
 
@@ -25,6 +25,11 @@ class Bot < ApplicationRecord
 
   scope :running, -> { where(status: 'running') }
   scope :active, -> { where(status: %w[running paused initializing]) }
+  scope :kept, -> { where(discarded_at: nil) }
+
+  def discard!
+    update!(discarded_at: Time.current)
+  end
 
   private
 

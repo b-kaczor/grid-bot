@@ -54,11 +54,35 @@ RSpec.describe Bot, type: :model do
     it '.active returns running, paused, and initializing bots' do
       expect(described_class.active).to contain_exactly(running_bot, paused_bot, initializing_bot)
     end
+
+    describe '.kept' do
+      let!(:kept_bot) { create(:bot, status: 'running') }
+      let!(:discarded_bot) { create(:bot, status: 'stopped', discarded_at: Time.current) }
+
+      it 'returns only bots without discarded_at' do
+        expect(described_class.kept).to include(kept_bot)
+        expect(described_class.kept).not_to include(discarded_bot)
+      end
+    end
+  end
+
+  describe '#discard!' do
+    let(:bot) { create(:bot, status: 'stopped') }
+
+    it 'sets discarded_at to current time' do
+      bot.discard!
+      expect(bot.reload.discarded_at).to be_within(2.seconds).of(Time.current)
+    end
+
+    it 'persists the change' do
+      bot.discard!
+      expect(bot.reload.discarded_at).to be_present
+    end
   end
 
   describe 'constants' do
     it 'defines STATUSES' do
-      expect(Bot::STATUSES).to eq(%w[pending initializing running paused stopped error])
+      expect(Bot::STATUSES).to eq(%w[pending initializing running paused stopping stopped error])
     end
 
     it 'defines SPACING_TYPES' do
