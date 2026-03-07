@@ -22,6 +22,8 @@ class Bot < ApplicationRecord
   validates :status, presence: true, inclusion: { in: STATUSES }
   validates :stop_reason, inclusion: { in: STOP_REASONS }, allow_nil: true
   validate :upper_price_greater_than_lower
+  validate :stop_loss_below_lower_price
+  validate :take_profit_above_upper_price
 
   scope :running, -> { where(status: 'running') }
   scope :active, -> { where(status: %w[running paused initializing]) }
@@ -37,5 +39,19 @@ class Bot < ApplicationRecord
     return unless upper_price && lower_price
 
     errors.add(:upper_price, 'must be greater than lower price') unless upper_price > lower_price
+  end
+
+  def stop_loss_below_lower_price
+    return unless stop_loss_price && lower_price
+    return if stop_loss_price < lower_price
+
+    errors.add(:stop_loss_price, 'must be below lower price')
+  end
+
+  def take_profit_above_upper_price
+    return unless take_profit_price && upper_price
+    return if take_profit_price > upper_price
+
+    errors.add(:take_profit_price, 'must be above upper price')
   end
 end

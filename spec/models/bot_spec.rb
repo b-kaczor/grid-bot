@@ -39,6 +39,54 @@ RSpec.describe Bot, type: :model do
       bot = build(:bot, lower_price: 2000, upper_price: 3000)
       expect(bot).to be_valid
     end
+
+    describe 'stop_loss_price' do
+      it 'is invalid when stop_loss_price >= lower_price' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, stop_loss_price: 2000)
+        expect(bot).not_to be_valid
+        expect(bot.errors[:stop_loss_price]).to include('must be below lower price')
+      end
+
+      it 'is invalid when stop_loss_price > lower_price' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, stop_loss_price: 2500)
+        expect(bot).not_to be_valid
+        expect(bot.errors[:stop_loss_price]).to include('must be below lower price')
+      end
+
+      it 'is valid when stop_loss_price < lower_price' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, stop_loss_price: 1900)
+        expect(bot).to be_valid
+      end
+
+      it 'skips validation when stop_loss_price is nil' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, stop_loss_price: nil)
+        expect(bot).to be_valid
+      end
+    end
+
+    describe 'take_profit_price' do
+      it 'is invalid when take_profit_price <= upper_price' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, take_profit_price: 3000)
+        expect(bot).not_to be_valid
+        expect(bot.errors[:take_profit_price]).to include('must be above upper price')
+      end
+
+      it 'is invalid when take_profit_price < upper_price' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, take_profit_price: 2500)
+        expect(bot).not_to be_valid
+        expect(bot.errors[:take_profit_price]).to include('must be above upper price')
+      end
+
+      it 'is valid when take_profit_price > upper_price' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, take_profit_price: 3500)
+        expect(bot).to be_valid
+      end
+
+      it 'skips validation when take_profit_price is nil' do
+        bot = build(:bot, lower_price: 2000, upper_price: 3000, take_profit_price: nil)
+        expect(bot).to be_valid
+      end
+    end
   end
 
   describe 'scopes' do
