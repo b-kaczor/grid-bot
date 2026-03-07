@@ -13,12 +13,7 @@ import {
   Container,
 } from '@mui/material';
 import { useCreateAccount, useTestConnection } from '../api/account.ts';
-
-const ENVIRONMENTS = [
-  { value: 'testnet', label: 'Testnet' },
-  { value: 'demo', label: 'Demo' },
-  { value: 'mainnet', label: 'Mainnet' },
-];
+import { ENVIRONMENTS } from '../types/account.ts';
 
 export const SetupPage = () => {
   const navigate = useNavigate();

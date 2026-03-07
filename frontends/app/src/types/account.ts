@@ -13,3 +13,9 @@ export interface TestConnectionResult {
   balance?: string;
   error?: string;
 }
+
+export const ENVIRONMENTS = [
+  { value: 'testnet', label: 'Testnet' },
+  { value: 'demo', label: 'Demo' },
+  { value: 'mainnet', label: 'Mainnet' },
+] as const;
