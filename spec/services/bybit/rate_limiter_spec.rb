@@ -17,54 +17,54 @@ unless defined?(Rails)
 end
 
 RSpec.describe Bybit::RateLimiter do
-  let(:redis) { MockRedis.new }
+  let(:mock_redis_class) do
+    Class.new do
+      def initialize
+        @store = {}
+        @ttls = {}
+      end
+
+      def eval(_script, keys:, argv:)
+        key = keys[0]
+        limit = argv[0].to_i
+        window = argv[1].to_i
+        current = (@store[key] || 0).to_i
+        return 0 if current >= limit
+
+        @store[key] = current + 1
+        @ttls[key] ||= window
+        1
+      end
+
+      def get(key)
+        @store[key]&.to_s
+      end
+
+      def set(key, value)
+        @store[key] = value.to_i
+      end
+
+      def expire(key, ttl)
+        @ttls[key] = ttl
+      end
+
+      def ttl_for(key)
+        @ttls[key]
+      end
+
+      def raw_get(key)
+        @store[key]
+      end
+    end
+  end
+
+  let(:redis) { mock_redis_class.new }
   let(:logger) { instance_double(Logger, warn: nil, info: nil, debug: nil) }
 
   subject(:limiter) { described_class.new(redis:) }
 
-  # Minimal mock Redis that supports the operations used by RateLimiter
   before do
-    Rails.logger = logger
-    stub_const(
-      'MockRedis', Class.new do
-                     def initialize
-                       @store = {}
-                       @ttls = {}
-                     end
-
-                     def eval(_script, keys:, argv:)
-                       key = keys[0]
-                       limit = argv[0].to_i
-                       window = argv[1].to_i
-                       current = (@store[key] || 0).to_i
-                       return 0 if current >= limit
-
-                       @store[key] = current + 1
-                       @ttls[key] ||= window
-                       1
-                     end
-
-                     def get(key)
-                       @store[key]&.to_s
-                     end
-
-                     def set(key, value)
-                       @store[key] = value.to_i
-                     end
-
-                     def expire(key, ttl)
-                       @ttls[key] = ttl
-                     end
-
-                     def ttl_for(key)
-                       @ttls[key]
-                     end
-
-                     def raw_get(key)
-                       @store[key]
-                     end
-                   end
-    )
+    allow(Rails).to receive(:logger).and_return(logger)
   end
 
   describe '#check!' do
