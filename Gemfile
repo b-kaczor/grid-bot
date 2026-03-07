@@ -12,6 +12,7 @@ gem 'tzinfo-data', platforms: %i[windows jruby]
 
 # Background jobs
 gem 'redis', '~> 5.0'
+gem 'connection_pool', '~> 2.4'
 gem 'sidekiq', '~> 7.0'
 
 # HTTP client
