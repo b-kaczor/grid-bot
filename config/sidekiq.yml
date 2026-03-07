@@ -1,0 +1,10 @@
+---
+:queues:
+  - default
+  - critical
+
+:schedule:
+  snapshot_retention:
+    cron: "0 3 * * *"
+    class: SnapshotRetentionJob
+    description: "Daily cleanup of balance snapshots (03:00 UTC)"
