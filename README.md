@@ -1,24 +1,146 @@
-# README
+# Volatility Harvester — Grid Trading Bot
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Automated grid trading bot for Bybit (Spot). Places a net of limit buy/sell orders within a price range and profits from sideways market oscillations.
 
-Things you may want to cover:
+## Stack
 
-* Ruby version
+- **Backend:** Ruby on Rails 7.1 (API mode), PostgreSQL, Redis, Sidekiq
+- **Frontend:** React 18 + TypeScript, Vite, Material-UI v6, React Query, Recharts
+- **Exchange:** Bybit V5 API (testnet first), behind an `Exchange::Adapter` interface
+- **Real-time:** ActionCable (Rails → React), async-websocket (Bybit → Rails)
 
-* System dependencies
+## Prerequisites
 
-* Configuration
+- Ruby 3.4.7
+- Node.js 20+
+- PostgreSQL 14+
+- Redis 7+
 
-* Database creation
+## Setup
 
-* Database initialization
+```bash
+# 1. Clone and install dependencies
+bundle install
+cd frontends/app && npm install && cd ../..
 
-* How to run the test suite
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your Bybit testnet API keys and a Lockbox key:
+#   BYBIT_API_KEY=your_testnet_api_key
+#   BYBIT_API_SECRET=your_testnet_api_secret
+#   LOCKBOX_MASTER_KEY=$(rails runner "puts Lockbox.generate_key")
 
-* Services (job queues, cache servers, search engines, etc.)
+# 3. Create and migrate database
+rails db:create db:migrate
 
-* Deployment instructions
+# 4. Create an exchange account (required before first use)
+rails runner "ExchangeAccount.create!(
+  name: 'Bybit Testnet',
+  exchange: 'bybit',
+  environment: 'testnet',
+  api_key: ENV['BYBIT_API_KEY'],
+  api_secret: ENV['BYBIT_API_SECRET']
+)"
+```
 
-* ...
+## Running
+
+You need 4 processes running. Use separate terminals or a process manager like `foreman`.
+
+```bash
+# Terminal 1: Rails API server
+rails s -p 3000
+
+# Terminal 2: Sidekiq (background jobs)
+bundle exec sidekiq
+
+# Terminal 3: WebSocket listener (Bybit fill events)
+bundle exec bin/ws_listener
+
+# Terminal 4: React frontend
+cd frontends/app && npm run dev
+```
+
+Then open **http://localhost:5173**
+
+## Running Tests
+
+```bash
+# Backend (RSpec)
+bundle exec rspec              # 414 specs
+
+# Rubocop
+bundle exec rubocop
+
+# Frontend (TypeScript check)
+cd frontends/app && npx tsc --noEmit
+```
+
+## Architecture
+
+```
+React Frontend (Vite, :5173)
+    ↕ REST API + ActionCable
+Rails API (Puma, :3000)
+    ↕
+PostgreSQL    Redis    Sidekiq
+                         ↕
+              WebSocket Listener (bin/ws_listener)
+                         ↕
+                    Bybit V5 API
+```
+
+### Key Components
+
+| Component | Description |
+|-----------|-------------|
+| `Grid::Calculator` | Arithmetic/geometric grid level spacing |
+| `Grid::Initializer` | Places initial grid orders on exchange |
+| `Grid::Stopper` | Safely stops a bot (cancels orders, cleans up) |
+| `OrderFillWorker` | Core buy→sell→buy loop with optimistic locking |
+| `GridReconciliationWorker` | Detects and repairs grid gaps every 15s |
+| `BalanceSnapshotWorker` | Portfolio snapshots every 5 minutes |
+| `Bybit::WebsocketListener` | Real-time fill detection via WebSocket |
+| `Bybit::RestClient` | Bybit V5 REST API client with rate limiting |
+| `Grid::RedisState` | Fast-read cache for dashboard |
+
+### Frontend Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| Dashboard | `/bots` | Bot cards with status, profit, range visualizer |
+| Create Bot | `/bots/new` | 3-step wizard: pair → parameters → investment |
+| Bot Detail | `/bots/:id` | Grid visualization, charts, trade history |
+
+## Project Structure
+
+```
+app/
+  channels/        — ActionCable channels (BotChannel)
+  controllers/     — API controllers (Api::V1::*)
+  jobs/            — Sidekiq jobs (BotInitializerJob)
+  models/          — ActiveRecord models (Bot, Order, Trade, etc.)
+  services/
+    bybit/         — Bybit API client, auth, rate limiter, WebSocket
+    exchange/      — Exchange-agnostic adapter interface
+    grid/          — Grid calculator, initializer, stopper, Redis state
+  workers/         — Sidekiq workers (OrderFill, Reconciliation, Snapshot)
+frontends/app/src/
+  api/             — API client, React Query hooks
+  cable/           — ActionCable consumer and hooks
+  components/      — Shared UI components
+  pages/           — Route pages (Dashboard, Detail, Wizard)
+  theme/           — MUI v6 dark theme
+  types/           — TypeScript interfaces
+docs/
+  IMPLEMENTATION_PLAN.md  — Full 5-phase plan
+  agents/                 — Architecture docs per phase
+```
+
+## Phases
+
+- [x] Phase 1: Foundation (Bybit client, models, grid math)
+- [x] Phase 2: Execution Loop (trading engine, WebSocket, reconciliation)
+- [x] Phase 3: Dashboard (Rails API, React frontend, real-time updates)
+- [ ] Phase 4: Risk Management (stop-loss, take-profit, trailing grid)
+- [ ] Phase 5: Analytics (daily stats, tax export, AI suggestions)
