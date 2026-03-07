@@ -62,6 +62,10 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 ### Services (Phase 3)
 - `app/services/grid/stopper.rb` — Graceful bot shutdown: cancels open orders on exchange, sets status to `stopped`
 
+### Services (Phase 4)
+- `app/services/grid/risk_manager.rb` — Stop-loss/take-profit: atomic running→stopping transition, emergency cancel + market sell, exchange balance lookup with DB fallback
+- `app/services/grid/trailing_manager.rb` — Grid trailing: cancel lowest buy, place new top sell, two-phase negative index re-indexing, exchange ops before DB transaction
+
 ### Jobs (Phase 3)
 - `app/jobs/bot_initializer_job.rb` — Sidekiq job that enqueues `Grid::Initializer`; triggered on bot create
 
@@ -87,6 +91,7 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `frontends/app/src/components/RangeVisualizer.tsx` — Price position bar within grid bounds
 - `frontends/app/src/components/TradeHistoryTable.tsx` — Paginated trade table
 - `frontends/app/src/components/ConnectionBanner.tsx` — ActionCable connection status banner
+- `frontends/app/src/components/RiskSettingsCard.tsx` — Inline-editable stop-loss, take-profit, trailing settings with stop reason alerts (Phase 4)
 - `frontends/app/src/theme/index.ts` — MUI v6 theme
 
 ### Jobs / Workers
@@ -95,6 +100,13 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `app/workers/grid_reconciliation_worker.rb` — Sidekiq-cron every 15s; detects and repairs grid gaps; self-scheduling, adopts orphaned exchange orders
 - `app/workers/balance_snapshot_worker.rb` — Sidekiq-cron every 5min; captures portfolio snapshots
 - `bin/ws_listener` — Standalone process entry point for Bybit::WebsocketListener
+
+### Production (Phase 4)
+- `config/systemd/gridbot-puma.service` — systemd unit for Rails API (Puma)
+- `config/systemd/gridbot-sidekiq.service` — systemd unit for Sidekiq workers
+- `config/systemd/gridbot-ws-listener.service` — systemd unit for WebSocket listener
+- `config/systemd/env.example` — Example environment file for systemd units
+- `Procfile.dev` — Development process manager (foreman)
 
 ### Migrations
 - `db/migrate/20260307004956_create_exchange_accounts.rb`
@@ -111,6 +123,7 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 | phase1-foundation | 1 | Complete | Rails skeleton, Bybit client, DB schema, grid calculator |
 | phase2-execution-loop | 2 | Complete | Initializer, WebSocket listener, fill worker, reconciliation, Redis state, snapshots |
 | phase3-dashboard | 3 | Complete | Rails API endpoints, ActionCable, React frontend (Vite + MUI v6 + React Query) |
+| phase4-risk-management | 4 | Complete | Stop-loss, take-profit, trailing grid, DCP safety, frontend risk UI, systemd units |
 
 ## Cross-references
 
@@ -126,3 +139,4 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - 2026-03-07: Phase 1 Foundation complete — Rails skeleton, Bybit REST client, Exchange::Adapter interface, DB schema (6 tables), Grid::Calculator (see phase1-foundation/)
 - 2026-03-07: Phase 2 Execution Loop complete — Grid::Initializer, Grid::RedisState, Bybit::WebsocketListener, OrderFillWorker, GridReconciliationWorker, BalanceSnapshotWorker (see phase2-execution-loop/)
 - 2026-03-07: Phase 3 Dashboard complete — Rails REST API (10 endpoints), ActionCable BotChannel, Grid::Stopper, BotInitializerJob, React frontend (Vite + MUI v6 + React Query): Dashboard, BotDetail, CreateBotWizard (see phase3-dashboard/)
+- 2026-03-07: Phase 4 Safety & Production complete — Grid::RiskManager (atomic stop-loss/take-profit), Grid::TrailingManager (grid shift on top-sell fill), DCP safety (40s dead man's switch), RiskSettingsCard (inline edit), systemd units, Procfile.dev, rate limiter monitoring (see phase4-risk-management/)

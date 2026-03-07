@@ -142,5 +142,5 @@ docs/
 - [x] Phase 1: Foundation (Bybit client, models, grid math)
 - [x] Phase 2: Execution Loop (trading engine, WebSocket, reconciliation)
 - [x] Phase 3: Dashboard (Rails API, React frontend, real-time updates)
-- [ ] Phase 4: Risk Management (stop-loss, take-profit, trailing grid)
+- [x] Phase 4: Risk Management (stop-loss, take-profit, trailing grid)
 - [ ] Phase 5: Analytics (daily stats, tax export, AI suggestions)
