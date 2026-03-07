@@ -7,7 +7,7 @@ module Bybit
         account = ExchangeAccount.first
         return unless account
 
-        url = ENV.fetch('BYBIT_WS_URL', 'wss://stream-testnet.bybit.com/v5/private')
+        url = ENV.fetch('BYBIT_WS_URL') { Bybit::Urls.for(account.environment)[:ws_private] }
         endpoint = Async::HTTP::Endpoint.parse(url)
 
         Async::WebSocket::Client.connect(endpoint) do |ws|

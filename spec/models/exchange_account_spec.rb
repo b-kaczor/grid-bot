@@ -14,7 +14,7 @@ RSpec.describe ExchangeAccount, type: :model do
     it { is_expected.to validate_presence_of(:exchange) }
     it { is_expected.to validate_inclusion_of(:exchange).in_array(%w[bybit]) }
     it { is_expected.to validate_presence_of(:environment) }
-    it { is_expected.to validate_inclusion_of(:environment).in_array(%w[testnet mainnet]) }
+    it { is_expected.to validate_inclusion_of(:environment).in_array(%w[testnet mainnet demo]) }
     it { is_expected.to validate_presence_of(:api_key) }
     it { is_expected.to validate_presence_of(:api_secret) }
     it { is_expected.to validate_uniqueness_of(:name).scoped_to(:exchange, :environment) }

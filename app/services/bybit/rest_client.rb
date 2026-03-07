@@ -19,6 +19,7 @@ module Bybit
       super()
       @api_key = api_key || exchange_account&.api_key || ENV.fetch('BYBIT_API_KEY', nil)
       @api_secret = api_secret || exchange_account&.api_secret || ENV.fetch('BYBIT_API_SECRET', nil)
+      @environment = exchange_account&.environment || ENV.fetch('BYBIT_ENVIRONMENT', 'testnet')
       @auth = Auth.new(api_key: @api_key, api_secret: @api_secret) if @api_key && @api_secret
       @rate_limiter = rate_limiter || RateLimiter.new
       @connection = build_connection
@@ -108,7 +109,7 @@ module Bybit
     private
 
     def build_connection
-      base_url = ENV.fetch('BYBIT_BASE_URL', 'https://api-testnet.bybit.com')
+      base_url = ENV.fetch('BYBIT_BASE_URL') { Bybit::Urls.for(@environment)[:rest] }
       Faraday.new(url: base_url) do |f|
         f.request :json
         f.response :json, parser_options: { symbolize_names: true }

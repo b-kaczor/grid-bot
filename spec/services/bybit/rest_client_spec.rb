@@ -475,7 +475,7 @@ RSpec.describe Bybit::RestClient do
 
   describe 'constructor' do
     it 'accepts exchange_account model' do
-      account = instance_double(ExchangeAccount, api_key: 'model_key', api_secret: 'model_secret')
+      account = instance_double(ExchangeAccount, api_key: 'model_key', api_secret: 'model_secret', environment: 'testnet')
 
       stub_request(:get, "#{base_url}/v5/market/tickers")
         .with(query: { category: 'spot', symbol: 'ETHUSDT' })
