@@ -170,6 +170,48 @@ RSpec.describe Grid::RedisState do
     end
   end
 
+  describe '#read_stats' do
+    before { state.seed(bot) }
+
+    it 'returns the stats hash from Redis' do
+      stats = state.read_stats(42)
+      expect(stats).to include(
+        'realized_profit' => '0',
+        'trade_count' => '0'
+      )
+      expect(stats['uptime_start']).to be_present
+    end
+
+    it 'returns empty hash for non-existent bot' do
+      expect(state.read_stats(999)).to eq({})
+    end
+  end
+
+  describe '#read_levels' do
+    before { state.seed(bot) }
+
+    it 'returns parsed level data keyed by level index' do
+      levels = state.read_levels(42)
+      expect(levels.keys).to contain_exactly('0', '1')
+      expect(levels['0']).to include(
+        'side' => 'buy',
+        'status' => 'active',
+        'price' => '2500.0',
+        'order_id' => 'order-001'
+      )
+    end
+
+    it 'returns parsed JSON objects, not raw strings' do
+      levels = state.read_levels(42)
+      expect(levels['1']).to be_a(Hash)
+      expect(levels['1']['cycle_count']).to eq(1)
+    end
+
+    it 'returns empty hash for non-existent bot' do
+      expect(state.read_levels(999)).to eq({})
+    end
+  end
+
   describe '#update_price' do
     it 'sets the current price key' do
       state.update_price(42, BigDecimal('2550.75'))

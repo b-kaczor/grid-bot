@@ -38,6 +38,15 @@ module Grid
       @redis.set(key(bot_id, :status), status)
     end
 
+    def read_stats(bot_id)
+      @redis.hgetall(key(bot_id, :stats))
+    end
+
+    def read_levels(bot_id)
+      raw = @redis.hgetall(key(bot_id, :levels))
+      raw.transform_values { |json| Oj.load(json) }
+    end
+
     def cleanup(bot_id)
       keys = KNOWN_SUFFIXES.map { |s| key(bot_id, s) }
       @redis.del(*keys)
