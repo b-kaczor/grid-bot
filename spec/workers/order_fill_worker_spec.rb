@@ -326,6 +326,82 @@ RSpec.describe OrderFillWorker do
       end
     end
 
+    context 'with trailing hook on top sell fill' do
+      let(:trailing_manager) { instance_double(Grid::TrailingManager) }
+
+      before do
+        buy_level
+        sell_level
+        top_level
+        buy_order
+        sell_order
+
+        allow(Grid::TrailingManager).to receive(:new).and_return(trailing_manager)
+        allow(client).to receive(:place_order).and_return(
+          Exchange::Response.new(success: true, data: { orderId: 'counter-buy-1' })
+        )
+      end
+
+      context 'when trailing is performed' do
+        let(:top_sell_order) do
+          create(
+            :order, bot:, grid_level: top_level, side: 'sell', price: 2600,
+                    quantity: 0.1, status: 'open', exchange_order_id: 'ex-top-sell',
+                    order_link_id: "g#{bot.id}-L2-S-0",
+                    paired_order_id: buy_order.id
+          )
+        end
+
+        before do
+          top_sell_order
+          allow(trailing_manager).to receive(:maybe_trail!).and_return(true)
+        end
+
+        it 'calls TrailingManager and skips counter-buy' do
+          worker.perform(Oj.dump(fill_data(top_sell_order)))
+          expect(Grid::TrailingManager).to have_received(:new).with(
+            bot, filled_level: top_level, client:
+          )
+          expect(trailing_manager).to have_received(:maybe_trail!)
+        end
+
+        it 'records a trade even when trailing' do
+          worker.perform(Oj.dump(fill_data(top_sell_order)))
+          expect(Trade.count).to eq(1)
+        end
+      end
+
+      context 'when trailing returns false (not applicable)' do
+        before do
+          allow(trailing_manager).to receive(:maybe_trail!).and_return(false)
+        end
+
+        it 'falls through to normal counter-buy' do
+          worker.perform(Oj.dump(fill_data(sell_order)))
+          expect(client).to have_received(:place_order).with(
+            hash_including(side: 'Buy')
+          )
+        end
+      end
+
+      context 'when trailing raises TrailError' do
+        before do
+          allow(trailing_manager).to receive(:maybe_trail!).and_raise(
+            Grid::TrailingManager::TrailError, 'lowest buy already filled'
+          )
+          allow(Rails.logger).to receive(:warn)
+        end
+
+        it 'logs warning and falls through to normal counter-buy' do
+          worker.perform(Oj.dump(fill_data(sell_order)))
+          expect(Rails.logger).to have_received(:warn).with(/Trailing skipped/)
+          expect(client).to have_received(:place_order).with(
+            hash_including(side: 'Buy')
+          )
+        end
+      end
+    end
+
     context 'with boundary levels' do
       before do
         buy_level.update!(level_index: 0)
