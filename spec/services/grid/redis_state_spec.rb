@@ -170,6 +170,17 @@ RSpec.describe Grid::RedisState do
     end
   end
 
+  describe '#read_price' do
+    it 'returns the current price' do
+      state.update_price(42, BigDecimal('2550.75'))
+      expect(state.read_price(42)).to eq('2550.75')
+    end
+
+    it 'returns nil for non-existent bot' do
+      expect(state.read_price(999)).to be_nil
+    end
+  end
+
   describe '#read_stats' do
     before { state.seed(bot) }
 

@@ -38,6 +38,10 @@ module Grid
       @redis.set(key(bot_id, :status), status)
     end
 
+    def read_price(bot_id)
+      @redis.get(key(bot_id, :current_price))
+    end
+
     def read_stats(bot_id)
       @redis.hgetall(key(bot_id, :stats))
     end
