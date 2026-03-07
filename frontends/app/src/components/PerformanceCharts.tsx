@@ -72,7 +72,7 @@ export const PerformanceCharts = ({ botId }: PerformanceChartsProps) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
       {/* Equity Curve */}
-      <Card variant="outlined" sx={{ flex: 1 }}>
+      <Card data-testid="chart-portfolio" variant="outlined" sx={{ flex: 1 }}>
         <CardContent sx={{ pb: 1 }}>
           <Typography variant="subtitle2" gutterBottom>Equity Curve</Typography>
           <ResponsiveContainer width="100%" height={120}>
@@ -94,7 +94,7 @@ export const PerformanceCharts = ({ botId }: PerformanceChartsProps) => {
 
       {/* Daily Profit */}
       {dailyProfitData.length > 0 && (
-        <Card variant="outlined" sx={{ flex: 1 }}>
+        <Card data-testid="chart-daily-profit" variant="outlined" sx={{ flex: 1 }}>
           <CardContent sx={{ pb: 1 }}>
             <Typography variant="subtitle2" gutterBottom>Daily Profit</Typography>
             <ResponsiveContainer width="100%" height={120}>

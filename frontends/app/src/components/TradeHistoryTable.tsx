@@ -61,7 +61,7 @@ export const TradeHistoryTable = ({ botId }: TradeHistoryTableProps) => {
   }
 
   return (
-    <TableContainer component={Paper} variant="outlined">
+    <TableContainer data-testid="trade-history-table" component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -92,6 +92,7 @@ export const TradeHistoryTable = ({ botId }: TradeHistoryTableProps) => {
       </Table>
       {data.pagination.total_pages > 1 && (
         <TablePagination
+          data-testid="trade-pagination"
           component="div"
           count={data.pagination.total}
           page={page}

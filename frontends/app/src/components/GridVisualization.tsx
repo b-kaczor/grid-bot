@@ -52,6 +52,7 @@ export const GridVisualization = ({ botId }: GridVisualizationProps) => {
         return (
           <Box
             key={level.level_index}
+            data-testid={`grid-level-${level.level_index}`}
             sx={{
               display: 'flex',
               alignItems: 'center',

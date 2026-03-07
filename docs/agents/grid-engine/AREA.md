@@ -25,6 +25,17 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - All decimal math uses `BigDecimal` — never floats for financial calculations.
 - Prices rounded to `tick_size`, quantities to `base_precision`.
 
+### Feature Spec Constraints (Phase 5)
+
+- Feature specs require Chrome/Chromium installed (Cuprite talks CDP directly — no Selenium/ChromeDriver).
+- Feature specs use `DatabaseCleaner` with **truncation** (not transactions) because Cuprite runs in a separate thread with its own DB connection that cannot see uncommitted test data.
+- ActionCable must use the **`async` adapter** (not the `test` adapter) during feature specs so broadcasts reach real WebSocket connections. The `test` adapter only buffers broadcasts for assertion — it does not deliver to connected browser clients.
+- Feature specs run with `WebMock.disable_net_connect!(allow_localhost: true)` to allow the Capybara Puma server and Chrome CDP connections while still blocking real exchange HTTP calls.
+- Vite assets must be pre-built with `VITE_TEST_MODE=1 VITE_API_URL=/api/v1 VITE_CABLE_URL=/cable npm run build` before the feature suite. The `before(:suite)` hook in `vite_assets.rb` handles this automatically when `dist/index.html` is missing; force a rebuild with `FORCE_VITE_BUILD=1`.
+- All test selectors use `data-testid` attributes — never MUI dynamic class names. See ARCHITECTURE.md section 12.3 for the full testid table.
+- The `PerformanceCharts` component requires at least 2 `BalanceSnapshot` records to render — use `seed_bot_with_charts(bot)` helper for any chart-related assertion.
+- The `feature_spec_active?` flag pattern is used in `database_cleaner.rb` to guard truncation setup from running outside feature spec contexts, preventing interference with the unit/integration test suite.
+
 ## Key Files
 
 ### Services
@@ -111,6 +122,17 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 ### Test Support
 - `spec/support/mock_redis.rb` — Shared MockRedis class for specs needing Redis without a live server
 - `spec/integration/trading_loop_spec.rb` — 9 end-to-end integration tests (full trading loop, risk management, idempotency)
+- `spec/support/capybara.rb` — Cuprite driver registration, Puma server config, async ActionCable adapter hook for feature specs
+- `spec/support/database_cleaner.rb` — Truncation strategy scoped to `type: :feature` specs; non-feature specs keep transactional fixtures
+- `spec/support/features/vite_assets.rb` — Vite build + public/ copy/symlink + `RackSpaMiddleware` injection; only runs when feature specs are in scope
+- `spec/support/features/rack_spa_middleware.rb` — Rack middleware serving `public/index.html` for any non-API 404 (enables React Router client-side paths in tests)
+- `spec/support/features/bot_helpers.rb` — `Features::BotHelpers` — creates seeded bots with grid levels, trades, Redis state, and balance snapshots for chart rendering
+- `spec/support/features/exchange_stubs.rb` — `Features::ExchangeStubs` — stubs `Bybit::RestClient` at the class level; reuses canned response patterns from integration specs
+- `spec/support/features/cable_helpers.rb` — `Features::CableHelpers` — `broadcast_to_bot(bot_id, payload)` for simulating ActionCable server push in feature specs
+- `spec/support/features/navigation_helpers.rb` — `Features::NavigationHelpers` — `visit_dashboard`, `visit_bot_detail(id)`, `visit_new_bot` shortcuts
+- `spec/features/dashboard_spec.rb` — 3 scenarios: bot card display, navigate to detail, empty state
+- `spec/features/bot_detail_spec.rb` — 6 scenarios: grid visualization, trade history pagination, performance charts, ActionCable fill update, risk settings view/edit
+- `spec/features/create_bot_wizard_spec.rb` — 4 scenarios: step 1 pair selection, step 2 params + validation, step 3 investment summary, full happy path
 
 ### Migrations
 - `db/migrate/20260307004956_create_exchange_accounts.rb`
@@ -128,7 +150,7 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 | phase2-execution-loop | 2 | Complete | Initializer, WebSocket listener, fill worker, reconciliation, Redis state, snapshots |
 | phase3-dashboard | 3 | Complete | Rails API endpoints, ActionCable, React frontend (Vite + MUI v6 + React Query) |
 | phase4-risk-management | 4 | Complete | Stop-loss, take-profit, trailing grid, DCP safety, frontend risk UI, systemd units |
-| phase5-feature-specs | 5 | Not started | Capybara browser-based E2E tests for React frontend |
+| phase5-feature-specs | 5 | Complete | Capybara + Cuprite E2E browser tests — 13 feature specs across Dashboard, Bot Detail, Create Bot Wizard |
 | phase6-analytics | 6 | Not started | Daily stats, tax export, AI suggestions, multi-bot analytics |
 
 ## Cross-references
@@ -139,6 +161,7 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `docs/agents/patterns/optimistic-locking-sidekiq.md` — Exactly-once counter-order placement with StaleObjectError retry (Phase 2)
 - `docs/agents/patterns/self-scheduling-sidekiq-worker.md` — Sub-minute recurring workers without cron (Phase 2)
 - `docs/agents/patterns/actioncable-react-integration.md` — Per-resource ActionCable subscription with React Query coexistence (Phase 3)
+- `docs/agents/patterns/capybara-vite-setup.md` — Capybara + Cuprite + Vite pre-build integration pattern for Rails + React E2E specs (Phase 5)
 
 ## History
 
@@ -147,3 +170,4 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - 2026-03-07: Phase 3 Dashboard complete — Rails REST API (10 endpoints), ActionCable BotChannel, Grid::Stopper, BotInitializerJob, React frontend (Vite + MUI v6 + React Query): Dashboard, BotDetail, CreateBotWizard (see phase3-dashboard/)
 - 2026-03-07: Phase 4 Safety & Production complete — Grid::RiskManager (atomic stop-loss/take-profit), Grid::TrailingManager (grid shift on top-sell fill), DCP safety (40s dead man's switch), RiskSettingsCard (inline edit), systemd units, Procfile.dev, rate limiter monitoring (see phase4-risk-management/)
 - 2026-03-07: Integration specs added — 9 end-to-end tests covering full trading loop, multi-cycle profit, idempotency, fee-adjusted quantities, stop-loss/take-profit, race safety. Shared MockRedis extracted to spec/support/
+- 2026-03-07: Phase 5 Feature Specs complete — Capybara + Cuprite infrastructure, 13 E2E browser scenarios, 517 total specs (504 existing + 13 new). See phase5-feature-specs/

@@ -7,11 +7,13 @@ import { BotDashboard } from './pages/BotDashboard.tsx';
 import { CreateBotWizard } from './pages/CreateBotWizard.tsx';
 import { BotDetail } from './pages/BotDetail.tsx';
 
+const isTestMode = import.meta.env.VITE_TEST_MODE === '1';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
-      retry: 1,
+      staleTime: isTestMode ? 0 : 30_000,
+      retry: isTestMode ? 0 : 1,
     },
   },
 });

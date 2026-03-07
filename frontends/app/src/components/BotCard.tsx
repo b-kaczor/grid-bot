@@ -35,7 +35,7 @@ export const BotCard = ({ bot }: BotCardProps) => {
   const dailyApr = computeDailyApr(bot);
 
   return (
-    <Card>
+    <Card data-testid={`bot-card-${bot.id}`}>
       <CardActionArea onClick={() => navigate(`/bots/${bot.id}`)}>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>

@@ -17,6 +17,7 @@ interface StatusBadgeProps {
 
 export const StatusBadge = ({ status }: StatusBadgeProps) => (
   <Chip
+    data-testid="status-badge"
     label={status}
     color={STATUS_COLORS[status]}
     size="small"

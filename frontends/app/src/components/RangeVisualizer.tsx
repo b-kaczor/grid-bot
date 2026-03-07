@@ -26,7 +26,7 @@ export const RangeVisualizer = ({ lowerPrice, upperPrice, currentPrice }: RangeV
   const color = pct !== null ? getBarColor(pct) : '#666';
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box data-testid="range-visualizer" sx={{ width: '100%' }}>
       <Box
         sx={{
           position: 'relative',
