@@ -6,6 +6,25 @@ RSpec.describe Order, type: :model do
   describe 'associations' do
     it { is_expected.to belong_to(:bot) }
     it { is_expected.to belong_to(:grid_level) }
+    it { is_expected.to belong_to(:paired_order).class_name('Order').optional }
+  end
+
+  describe 'paired_order association' do
+    let(:bot) { create(:bot) }
+    let(:grid_level) { create(:grid_level, bot:) }
+    let(:buy_order) { create(:order, bot:, grid_level:, side: 'buy', status: 'filled') }
+
+    it 'links a counter-order back to its trigger order' do
+      sell_order = create(:order, bot:, grid_level:, side: 'sell', status: 'open', paired_order: buy_order)
+
+      expect(sell_order.paired_order).to eq(buy_order)
+    end
+
+    it 'allows nil paired_order for initial orders' do
+      order = create(:order, bot:, grid_level:, paired_order: nil)
+
+      expect(order.paired_order).to be_nil
+    end
   end
 
   describe 'validations' do

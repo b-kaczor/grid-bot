@@ -3,6 +3,7 @@
 class Order < ApplicationRecord
   belongs_to :bot
   belongs_to :grid_level
+  belongs_to :paired_order, class_name: 'Order', optional: true
 
   SIDES = %w[buy sell].freeze
   STATUSES = %w[pending open partially_filled filled cancelled rejected].freeze

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_03_07_005001) do
+ActiveRecord::Schema[7.1].define(version: 2026_03_07_005003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -53,6 +53,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_07_005001) do
     t.boolean "trailing_up_enabled", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "quantity_per_level", precision: 20, scale: 8
     t.index ["exchange_account_id"], name: "index_bots_on_exchange_account_id"
   end
 
@@ -101,12 +102,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_07_005001) do
     t.datetime "filled_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "paired_order_id"
     t.index ["bot_id", "status"], name: "index_orders_on_bot_id_and_status"
     t.index ["bot_id"], name: "index_orders_on_bot_id"
     t.index ["exchange_order_id"], name: "index_orders_on_exchange_order_id"
     t.index ["grid_level_id", "status"], name: "index_orders_on_grid_level_id_and_status"
     t.index ["grid_level_id"], name: "index_orders_on_grid_level_id"
     t.index ["order_link_id"], name: "index_orders_on_order_link_id", unique: true
+    t.index ["paired_order_id"], name: "index_orders_on_paired_order_id"
   end
 
   create_table "trades", force: :cascade do |t|
@@ -135,6 +138,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_07_005001) do
   add_foreign_key "grid_levels", "bots"
   add_foreign_key "orders", "bots"
   add_foreign_key "orders", "grid_levels"
+  add_foreign_key "orders", "orders", column: "paired_order_id"
   add_foreign_key "trades", "bots"
   add_foreign_key "trades", "grid_levels"
   add_foreign_key "trades", "orders", column: "buy_order_id"
