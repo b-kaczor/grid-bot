@@ -19,6 +19,7 @@ module Bybit
       def setup_connection(connection, account)
         authenticate(connection, account)
         subscribe(connection)
+        register_dcp(account)
       end
 
       def run_with_heartbeat(connection, parent_task)
@@ -48,9 +49,21 @@ module Bybit
       end
 
       def subscribe(connection)
-        topics = %w[order.spot execution.spot wallet]
+        topics = %w[order.spot execution.spot wallet dcp]
+        Bot.running.pluck(:pair).uniq.each { |pair| topics << "tickers.#{pair}" }
         connection.send_text(Oj.dump({ op: 'subscribe', args: topics }))
-        Rails.logger.info('[WS] Subscribed to order.spot, execution.spot, wallet')
+        Rails.logger.info("[WS] Subscribed to: #{topics.join(', ')}")
+      end
+
+      def register_dcp(account)
+        client = Bybit::RestClient.new(api_key: account.api_key, api_secret: account.api_secret)
+        response = client.set_dcp(time_window: 40)
+        if response.success?
+          Rails.logger.info('[WS] DCP registered (40s window)')
+          @redis.set('grid:dcp:registered_at', Time.current.to_i.to_s)
+        else
+          Rails.logger.warn("[WS] DCP registration failed: #{response.error_message}")
+        end
       end
 
       def read_loop(connection, parent_task)
