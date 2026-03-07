@@ -15,11 +15,11 @@ module Bybit
       set_dcp: :order_write,
     }.freeze
 
-    def initialize(exchange_account: nil, api_key: nil, api_secret: nil, rate_limiter: nil)
+    def initialize(exchange_account: nil, api_key: nil, api_secret: nil, environment: nil, rate_limiter: nil)
       super()
       @api_key = api_key || exchange_account&.api_key || ENV.fetch('BYBIT_API_KEY', nil)
       @api_secret = api_secret || exchange_account&.api_secret || ENV.fetch('BYBIT_API_SECRET', nil)
-      @environment = exchange_account&.environment || ENV.fetch('BYBIT_ENVIRONMENT', 'testnet')
+      @environment = environment || exchange_account&.environment || ENV.fetch('BYBIT_ENVIRONMENT', 'testnet')
       @auth = Auth.new(api_key: @api_key, api_secret: @api_secret) if @api_key && @api_secret
       @rate_limiter = rate_limiter || RateLimiter.new
       @connection = build_connection

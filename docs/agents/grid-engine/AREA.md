@@ -25,6 +25,16 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - All decimal math uses `BigDecimal` — never floats for financial calculations.
 - Prices rounded to `tick_size`, quantities to `base_precision`.
 
+### Account Management Constraints (phase5-account-management)
+
+- `ExchangeAccount` responses must never include `api_key` or `api_secret` — only `api_key_hint` (last 4 chars, prefixed with `*` × 8).
+- `api_key` and `api_secret` are in `Rails.application.config.filter_parameters` (see `config/initializers/filter_parameter_logging.rb`).
+- PATCH `/exchange_account/current` skips secret fields when they are blank — allows name/environment-only updates without re-entering credentials.
+- The "test before save" enforcement is React-side only (Save button disabled until `POST /test` succeeds). The backend does not track test state.
+- `Bybit::RestClient` accepts `environment:` as a standalone keyword arg (added in this work item) so the test endpoint can build a temporary client without an `ExchangeAccount` record.
+- `AccountGuard` wraps a layout `<Outlet />` route — it runs once per navigation, not per child page. `/setup` is outside the guard and always accessible to prevent redirect loops.
+- React Query `"undefined"` console warning on the Setup page (when API returns `{"setup_required":true}`) is a known minor issue with no user-facing impact (BUG-002, open, low priority).
+
 ### Feature Spec Constraints (Phase 5)
 
 - Feature specs require Chrome/Chromium installed (Cuprite talks CDP directly — no Selenium/ChromeDriver).
@@ -67,6 +77,9 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `app/controllers/api/v1/exchange/pairs_controller.rb` — Available spot trading pairs from Bybit
 - `app/controllers/api/v1/exchange/balances_controller.rb` — Current account balance
 
+### Controllers (phase5-account-management)
+- `app/controllers/api/v1/exchange_accounts_controller.rb` — ExchangeAccount CRUD + connection test. Routes: `GET /current` (404 with `setup_required:true` if none), `POST /` (create; 422 if exists), `PATCH /current` (update; secrets skipped if blank), `POST /test` (validate creds against Bybit without persisting)
+
 ### Channels (Phase 3)
 - `app/channels/bot_channel.rb` — ActionCable channel; streams per-bot fill events, status changes, and price updates to subscribed clients
 
@@ -79,6 +92,13 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 
 ### Jobs (Phase 3)
 - `app/jobs/bot_initializer_job.rb` — Sidekiq job that enqueues `Grid::Initializer`; triggered on bot create
+
+### Frontend (phase5-account-management)
+- `frontends/app/src/types/account.ts` — `ExchangeAccount` and `TestConnectionResult` TypeScript types
+- `frontends/app/src/api/account.ts` — React Query hooks: `useExchangeAccount`, `useCreateAccount`, `useUpdateAccount`, `useTestConnection`
+- `frontends/app/src/components/AccountGuard.tsx` — App-level route guard: queries `/exchange_account/current`; redirects to `/setup` on 404; shows spinner while loading; wraps `<Outlet />` layout route so the check runs once per navigation
+- `frontends/app/src/pages/SetupPage.tsx` — First-time setup form (name, environment, API key, secret); "Test Connection" required before Save; on success navigates to `/bots`
+- `frontends/app/src/pages/SettingsPage.tsx` — View/edit existing account; blank key/secret fields omitted from PATCH (preserves existing secrets); same test-before-save enforcement
 
 ### Frontend (Phase 3)
 - `frontends/app/src/main.tsx` — Vite + React app entry point
@@ -119,6 +139,10 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `config/systemd/env.example` — Example environment file for systemd units
 - `Procfile.dev` — Development process manager (foreman)
 
+### Specs (phase5-account-management)
+- `spec/requests/api/v1/exchange_accounts_controller_spec.rb` — Request specs covering all four endpoints; explicitly asserts `api_key`/`api_secret` absent from every response body
+- `spec/features/account_management_spec.rb` — Capybara E2E: account guard redirects, setup page form flow, settings view/edit, partial update, nav icon
+
 ### Test Support
 - `spec/support/mock_redis.rb` — Shared MockRedis class for specs needing Redis without a live server
 - `spec/integration/trading_loop_spec.rb` — 9 end-to-end integration tests (full trading loop, risk management, idempotency)
@@ -151,6 +175,7 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 | phase3-dashboard | 3 | Complete | Rails API endpoints, ActionCable, React frontend (Vite + MUI v6 + React Query) |
 | phase4-risk-management | 4 | Complete | Stop-loss, take-profit, trailing grid, DCP safety, frontend risk UI, systemd units |
 | phase5-feature-specs | 5 | Complete | Capybara + Cuprite E2E browser tests — 13 feature specs across Dashboard, Bot Detail, Create Bot Wizard |
+| phase5-account-management | 5.5 | Complete | ExchangeAccount API (show/create/update/test), AccountGuard, SetupPage, SettingsPage — app usable without rails console |
 | phase6-analytics | 6 | Not started | Daily stats, tax export, AI suggestions, multi-bot analytics |
 
 ## Cross-references
@@ -162,6 +187,8 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - `docs/agents/patterns/self-scheduling-sidekiq-worker.md` — Sub-minute recurring workers without cron (Phase 2)
 - `docs/agents/patterns/actioncable-react-integration.md` — Per-resource ActionCable subscription with React Query coexistence (Phase 3)
 - `docs/agents/patterns/capybara-vite-setup.md` — Capybara + Cuprite + Vite pre-build integration pattern for Rails + React E2E specs (Phase 5)
+- `docs/agents/patterns/react-resource-guard.md` — React-level redirect guard based on API resource existence (AccountGuard pattern, phase5-account-management)
+- `docs/agents/patterns/vite-dev-proxy.md` — Vite dev server proxy for `/api` and `/cable` to Rails backend (phase5-account-management)
 
 ## History
 
@@ -171,3 +198,4 @@ The grid engine is the core trading system of Volatility Harvester. It manages t
 - 2026-03-07: Phase 4 Safety & Production complete — Grid::RiskManager (atomic stop-loss/take-profit), Grid::TrailingManager (grid shift on top-sell fill), DCP safety (40s dead man's switch), RiskSettingsCard (inline edit), systemd units, Procfile.dev, rate limiter monitoring (see phase4-risk-management/)
 - 2026-03-07: Integration specs added — 9 end-to-end tests covering full trading loop, multi-cycle profit, idempotency, fee-adjusted quantities, stop-loss/take-profit, race safety. Shared MockRedis extracted to spec/support/
 - 2026-03-07: Phase 5 Feature Specs complete — Capybara + Cuprite infrastructure, 13 E2E browser scenarios, 517 total specs (504 existing + 13 new). See phase5-feature-specs/
+- 2026-03-07: Phase 5.5 Account Management complete — ExchangeAccount REST API (4 endpoints, credential masking), AccountGuard, SetupPage, SettingsPage; Vite dev proxy added; app now usable without rails console. See phase5-account-management/

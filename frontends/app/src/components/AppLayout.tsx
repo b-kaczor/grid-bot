@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { AppBar, Toolbar, Typography, Container, Box } from '@mui/material';
+import { AppBar, Toolbar, Typography, Container, Box, IconButton } from '@mui/material';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { useNavigate } from 'react-router-dom';
 
 interface AppLayoutProps {
@@ -21,6 +22,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           >
             GridBot
           </Typography>
+          <IconButton color="inherit" onClick={() => navigate('/settings')} data-testid="nav-settings">
+            <SettingsIcon />
+          </IconButton>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 3, mb: 3, flexGrow: 1 }}>

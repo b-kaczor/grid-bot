@@ -7,4 +7,13 @@ export default defineConfig({
   build: {
     assetsDir: 'vite-assets',
   },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:4000',
+      '/cable': {
+        target: 'ws://localhost:4000',
+        ws: true,
+      },
+    },
+  },
 })
