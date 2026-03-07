@@ -65,16 +65,44 @@ Then open **http://localhost:5173**
 
 ## Running Tests
 
+### Unit and Integration Specs
+
 ```bash
-# Backend (RSpec)
-bundle exec rspec              # 504 specs
+# All backend specs (517 total)
+bundle exec rspec
+
+# Unit + integration specs only (no browser)
+bundle exec rspec --exclude-pattern "spec/features/**/*_spec.rb"
 
 # Rubocop
 bundle exec rubocop
 
-# Frontend (TypeScript check)
+# Frontend TypeScript check
 cd frontends/app && npx tsc --noEmit
 ```
+
+### E2E Feature Specs (Capybara + Cuprite)
+
+Feature specs drive a real headless Chrome browser against the full Rails + React stack.
+
+**Prerequisites:**
+- Chrome or Chromium installed (Cuprite connects via Chrome DevTools Protocol — no Selenium required)
+- Frontend assets built with test environment variables (the suite does this automatically on first run)
+
+```bash
+# Build Vite assets for testing (automatic on first feature spec run, or force with FORCE_VITE_BUILD=1)
+cd frontends/app && \
+  VITE_API_URL=/api/v1 VITE_CABLE_URL=/cable VITE_TEST_MODE=1 npm run build && \
+  cd ../..
+
+# Run feature specs only
+bundle exec rspec spec/features/
+
+# Force a fresh Vite build before running
+FORCE_VITE_BUILD=1 bundle exec rspec spec/features/
+```
+
+The feature specs cover three pages: Dashboard (3 scenarios), Bot Detail (6 scenarios), and Create Bot Wizard (4 scenarios). No live Redis or Bybit exchange connection is required — both are stubbed.
 
 ## Architecture
 
@@ -143,5 +171,5 @@ docs/
 - [x] Phase 2: Execution Loop (trading engine, WebSocket, reconciliation)
 - [x] Phase 3: Dashboard (Rails API, React frontend, real-time updates)
 - [x] Phase 4: Risk Management (stop-loss, take-profit, trailing grid)
-- [ ] Phase 5: Feature Specs (Capybara browser-based E2E tests)
+- [x] Phase 5: Feature Specs (Capybara browser-based E2E tests)
 - [ ] Phase 6: Analytics (daily stats, tax export, AI suggestions)
