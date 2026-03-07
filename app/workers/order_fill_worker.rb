@@ -32,25 +32,31 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
   def execute_fill(order_data, order_data_json, retry_count)
     order = find_order(order_data, order_data_json, retry_count)
     return unless order
-
     return if order.status == 'filled'
 
     bot = order.bot
     client = Bybit::RestClient.new(exchange_account: bot.exchange_account)
-    redis_state = Grid::RedisState.new
-    trade = nil
+    trade = process_fill_transaction(order, order_data, bot, client)
+    post_fill_updates(bot, order, trade)
+  end
 
+  def process_fill_transaction(order, order_data, bot, client)
+    trade = nil
     ActiveRecord::Base.transaction do
       grid_level = order.grid_level
       grid_level.lock!
-
       update_order!(order, order_data, bot)
       grid_level.update!(status: 'filled')
-
       trade = handle_fill(order, grid_level, bot, client)
     end
+    trade
+  end
 
-    redis_state.update_on_fill(bot, order.grid_level.reload, trade)
+  def post_fill_updates(bot, order, trade)
+    redis_state = Grid::RedisState.new
+    grid_level = order.grid_level.reload
+    redis_state.update_on_fill(bot, grid_level, trade)
+    broadcast_fill(bot, grid_level, trade, redis_state)
   end
 
   def find_order(order_data, order_data_json, retry_count)
@@ -232,5 +238,39 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
       Rails.logger.warn("[Fill] Fee in unexpected coin #{order.fee_coin} for order #{order.id}")
       BigDecimal('0')
     end
+  end
+
+  def broadcast_fill(bot, grid_level, trade, redis_state)
+    stats = redis_state.read_stats(bot.id)
+    ActionCable.server.broadcast(
+      "bot_#{bot.id}", {
+        type: 'fill',
+        grid_level: serialize_grid_level(grid_level),
+        trade: trade ? serialize_trade(trade) : nil,
+        realized_profit: stats['realized_profit'] || '0',
+        trade_count: (stats['trade_count'] || '0').to_i,
+      }
+    )
+  end
+
+  def serialize_grid_level(level)
+    {
+      level_index: level.level_index,
+      price: level.price.to_s,
+      expected_side: level.expected_side,
+      status: level.status,
+      cycle_count: level.cycle_count,
+    }
+  end
+
+  def serialize_trade(trade)
+    {
+      id: trade.id,
+      buy_price: trade.buy_price.to_s,
+      sell_price: trade.sell_price.to_s,
+      quantity: trade.quantity.to_s,
+      net_profit: trade.net_profit.to_s,
+      completed_at: trade.completed_at&.iso8601,
+    }
   end
 end

@@ -45,6 +45,8 @@ RSpec.describe OrderFillWorker do
     allow(Bybit::RestClient).to receive(:new).and_return(client)
     allow(Grid::RedisState).to receive(:new).and_return(redis_state)
     allow(redis_state).to receive(:update_on_fill)
+    allow(redis_state).to receive(:read_stats).and_return({ 'realized_profit' => '10.5', 'trade_count' => '3' })
+    allow(ActionCable.server).to receive(:broadcast)
   end
 
   subject(:worker) { described_class.new }
@@ -101,6 +103,14 @@ RSpec.describe OrderFillWorker do
         worker.perform(Oj.dump(fill_data(buy_order)))
         expect(redis_state).to have_received(:update_on_fill).with(bot, buy_level, nil)
       end
+
+      it 'broadcasts fill event via ActionCable' do
+        worker.perform(Oj.dump(fill_data(buy_order)))
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "bot_#{bot.id}",
+          hash_including(type: 'fill', trade: nil, realized_profit: '10.5', trade_count: 3)
+        )
+      end
     end
 
     context 'when a sell order fills' do
@@ -146,6 +156,19 @@ RSpec.describe OrderFillWorker do
         expect(redis_state).to have_received(:update_on_fill) do |_bot, _level, trade|
           expect(trade).to be_a(Trade) if trade
         end
+      end
+
+      it 'broadcasts fill event with trade data via ActionCable' do
+        worker.perform(Oj.dump(fill_data(sell_order)))
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "bot_#{bot.id}",
+          hash_including(
+            type: 'fill',
+            trade: hash_including(:id, :buy_price, :sell_price, :net_profit),
+            realized_profit: '10.5',
+            trade_count: 3
+          )
+        )
       end
     end
 

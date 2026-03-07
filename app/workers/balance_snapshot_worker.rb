@@ -21,8 +21,9 @@ class BalanceSnapshotWorker
 
     snapshot_data = build_snapshot_data(bot, current_price)
 
-    BalanceSnapshot.create!(bot:, granularity: 'fine', snapshot_at: Time.current, **snapshot_data)
+    snapshot = BalanceSnapshot.create!(bot:, granularity: 'fine', snapshot_at: Time.current, **snapshot_data)
     Grid::RedisState.new.update_price(bot.id, current_price)
+    broadcast_price_update(bot, snapshot)
   end
 
   def fetch_current_price(bot)
@@ -79,5 +80,16 @@ class BalanceSnapshotWorker
     total_cost = active_buys.sum('avg_fill_price * net_quantity')
     total_qty = active_buys.sum(:net_quantity)
     total_qty.positive? ? total_cost / total_qty : BigDecimal('0')
+  end
+
+  def broadcast_price_update(bot, snapshot)
+    ActionCable.server.broadcast(
+      "bot_#{bot.id}", {
+        type: 'price_update',
+        current_price: snapshot.current_price.to_s,
+        unrealized_pnl: snapshot.unrealized_pnl.to_s,
+        total_value_quote: snapshot.total_value_quote.to_s,
+      }
+    )
   end
 end

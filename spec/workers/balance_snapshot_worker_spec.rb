@@ -32,6 +32,7 @@ RSpec.describe BalanceSnapshotWorker do
     allow(client).to receive(:get_tickers).and_return(ticker_response)
     allow(Grid::RedisState).to receive(:new).and_return(redis_state)
     allow(redis_state).to receive(:update_price)
+    allow(ActionCable.server).to receive(:broadcast)
   end
 
   describe '#perform' do
@@ -105,6 +106,19 @@ RSpec.describe BalanceSnapshotWorker do
       it 'updates Redis price' do
         worker.perform
         expect(redis_state).to have_received(:update_price).with(bot.id, BigDecimal('2500'))
+      end
+
+      it 'broadcasts price_update via ActionCable' do
+        worker.perform
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "bot_#{bot.id}",
+          hash_including(
+            type: 'price_update',
+            current_price: '2500.0',
+            unrealized_pnl: anything,
+            total_value_quote: anything
+          )
+        )
       end
     end
 
