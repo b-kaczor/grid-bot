@@ -6,6 +6,7 @@ class BalanceSnapshotWorker
   sidekiq_options queue: :default, retry: 3
 
   def perform
+    check_dcp_health
     Bot.running.find_each do |bot|
       create_snapshot(bot)
     rescue StandardError => e
@@ -18,12 +19,32 @@ class BalanceSnapshotWorker
   def create_snapshot(bot)
     current_price = fetch_current_price(bot)
     return unless current_price
+    return if check_risk(bot, current_price)
 
     snapshot_data = build_snapshot_data(bot, current_price)
 
     snapshot = BalanceSnapshot.create!(bot:, granularity: 'fine', snapshot_at: Time.current, **snapshot_data)
     Grid::RedisState.new.update_price(bot.id, current_price)
     broadcast_price_update(bot, snapshot)
+  end
+
+  def check_risk(bot, price)
+    result = Grid::RiskManager.new(bot, current_price: price).check!
+    result.present?
+  rescue StandardError => e
+    Rails.logger.error("[Snapshot] Risk check failed for bot #{bot.id}: #{e.message}")
+    false
+  end
+
+  def check_dcp_health
+    redis = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'))
+    registered = redis.get('grid:dcp:registered_at')&.to_i
+    return unless registered&.positive?
+
+    last_confirmed = redis.get('grid:dcp:last_confirmed')&.to_i || registered
+    return unless Time.current.to_i - last_confirmed > 60
+
+    Rails.logger.warn('[DCP] No DCP confirmation in >60s — safety net may be inactive')
   end
 
   def fetch_current_price(bot)
