@@ -17,6 +17,7 @@ import { ConnectionBanner } from '../components/ConnectionBanner.tsx';
 import { TradeHistoryTable } from '../components/TradeHistoryTable.tsx';
 import { GridVisualization } from '../components/GridVisualization.tsx';
 import { PerformanceCharts } from '../components/PerformanceCharts.tsx';
+import { RiskSettingsCard } from '../components/RiskSettingsCard.tsx';
 
 const formatUptime = (seconds: number): string => {
   const d = Math.floor(seconds / 86400);
@@ -161,7 +162,7 @@ export const BotDetail = () => {
         </Box>
       )}
 
-      {/* Error state */}
+      {/* Error state (non-risk) */}
       {bot.status === 'error' && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Bot encountered an error and has stopped.
@@ -198,6 +199,11 @@ export const BotDetail = () => {
               />
             </Grid>
           </Grid>
+
+          {/* Risk Settings */}
+          <Box sx={{ mb: 3 }}>
+            <RiskSettingsCard bot={bot} />
+          </Box>
 
           {/* Grid Visualization + Performance Charts */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
