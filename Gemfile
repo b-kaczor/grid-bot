@@ -45,6 +45,9 @@ group :development, :test do
 end
 
 group :test do
+  gem 'capybara', '~> 3.40'
+  gem 'cuprite', '~> 0.15'
+  gem 'database_cleaner-active_record', '~> 2.2'
   gem 'shoulda-matchers', '~> 6.0'
   gem 'webmock', '~> 3.0'
 end
