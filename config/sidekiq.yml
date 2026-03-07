@@ -1,10 +1,14 @@
 ---
 :queues:
-  - default
   - critical
+  - default
 
 :schedule:
   snapshot_retention:
     cron: "0 3 * * *"
     class: SnapshotRetentionJob
     description: "Daily cleanup of balance snapshots (03:00 UTC)"
+  balance_snapshot:
+    cron: "*/5 * * * *"
+    class: BalanceSnapshotWorker
+    description: "Capture portfolio balance snapshots every 5 minutes"
