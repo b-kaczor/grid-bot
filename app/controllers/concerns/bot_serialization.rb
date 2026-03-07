@@ -20,7 +20,7 @@ module BotSerialization
     )
   end
 
-  def bot_response(bot)
+  def bot_response(bot) # rubocop:disable Metrics/AbcSize
     {
       id: bot.id,
       pair: bot.pair,
@@ -33,6 +33,10 @@ module BotSerialization
       spacing_type: bot.spacing_type,
       investment_amount: bot.investment_amount.to_s,
       created_at: bot.created_at&.iso8601,
+      stop_loss_price: bot.stop_loss_price&.to_s,
+      take_profit_price: bot.take_profit_price&.to_s,
+      trailing_up_enabled: bot.trailing_up_enabled,
+      stop_reason: bot.stop_reason,
     }
   end
 

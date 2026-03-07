@@ -35,6 +35,9 @@ module Api
           handle_status_change
           return if performed?
         end
+
+        @bot.update!(risk_params) if risk_params.present?
+
         render json: { bot: bot_detail(@bot, Grid::RedisState.new, recent_trades_for(@bot)) }
       end
 
@@ -53,7 +56,14 @@ module Api
       def bot_params
         params.require(:bot).permit(
           :pair, :base_coin, :quote_coin, :lower_price, :upper_price,
-          :grid_count, :spacing_type, :investment_amount
+          :grid_count, :spacing_type, :investment_amount,
+          :stop_loss_price, :take_profit_price, :trailing_up_enabled
+        )
+      end
+
+      def risk_params
+        params.require(:bot).permit(
+          :stop_loss_price, :take_profit_price, :trailing_up_enabled
         )
       end
 
