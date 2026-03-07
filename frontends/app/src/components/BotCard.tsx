@@ -1,7 +1,10 @@
-import { Card, CardContent, CardActionArea, Box, Typography, Stack } from '@mui/material';
+import { useState } from 'react';
+import { Card, CardContent, CardActionArea, Box, Typography, Stack, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, Alert } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from './StatusBadge.tsx';
 import { RangeVisualizer } from './RangeVisualizer.tsx';
+import { useDeleteBot } from '../api/bots.ts';
 import type { Bot } from '../types/bot.ts';
 
 interface BotCardProps {
@@ -32,7 +35,22 @@ const computeDailyApr = (bot: Bot): string | null => {
 
 export const BotCard = ({ bot }: BotCardProps) => {
   const navigate = useNavigate();
+  const deleteBot = useDeleteBot();
   const dailyApr = computeDailyApr(bot);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmOpen(true);
+  };
+
+  const isActive = ['running', 'paused', 'initializing'].includes(bot.status);
+
+  const handleConfirmDelete = () => {
+    deleteBot.mutate(bot.id, {
+      onSuccess: () => setConfirmOpen(false),
+    });
+  };
 
   return (
     <Card data-testid={`bot-card-${bot.id}`}>
@@ -40,7 +58,17 @@ export const BotCard = ({ bot }: BotCardProps) => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
             <Typography variant="h6">{bot.pair}</Typography>
-            <StatusBadge status={bot.status} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <StatusBadge status={bot.status} />
+              <IconButton
+                size="small"
+                onClick={handleDelete}
+                data-testid={`bot-delete-${bot.id}`}
+                sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
 
           <RangeVisualizer
@@ -79,6 +107,31 @@ export const BotCard = ({ bot }: BotCardProps) => {
           </Typography>
         </CardContent>
       </CardActionArea>
+
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Delete Bot</DialogTitle>
+        <DialogContent>
+          {isActive && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              This bot is currently {bot.status}. Deleting it will cancel all open orders on the exchange.
+            </Alert>
+          )}
+          <DialogContentText>
+            Delete {bot.pair} bot? This cannot be undone.
+          </DialogContentText>
+          {deleteBot.isError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              Failed to delete bot. Please try again.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" disabled={deleteBot.isPending}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 };

@@ -1,6 +1,19 @@
 # frozen_string_literal: true
 
+require 'sidekiq/web'
+
+Sidekiq::Web.use ActionDispatch::Cookies
+Sidekiq::Web.use ActionDispatch::Session::CookieStore, key: '_gridbot_sidekiq_session'
+unless Rails.env.development?
+  Sidekiq::Web.use Rack::Auth::Basic do |username, password|
+    ActiveSupport::SecurityUtils.secure_compare(username, ENV.fetch('SIDEKIQ_USERNAME', 'admin')) &
+      ActiveSupport::SecurityUtils.secure_compare(password, ENV.fetch('SIDEKIQ_PASSWORD', 'gridbot'))
+  end
+end
+
 Rails.application.routes.draw do
+  mount Sidekiq::Web => '/sidekiq'
+
   get 'up' => 'rails/health#show', as: :rails_health_check
 
   namespace :api do

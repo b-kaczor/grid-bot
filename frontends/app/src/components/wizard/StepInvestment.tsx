@@ -14,6 +14,8 @@ import { useExchangeBalance } from '../../api/exchange.ts';
 import type { TradingPair } from '../../types/exchange.ts';
 import type { GridParameters } from './gridParameters.ts';
 
+const MIN_INVESTMENT = 10;
+
 interface StepInvestmentProps {
   pair: TradingPair;
   params: GridParameters;
@@ -48,7 +50,7 @@ export const StepInvestment = ({
 
   const handleSliderChange = (_e: Event, val: number | number[]) => {
     const pct = val as number;
-    const newAmount = (available * pct) / 100;
+    const newAmount = Math.max((available * pct) / 100, MIN_INVESTMENT);
     onInvestmentAmountChange(newAmount.toFixed(2));
   };
 
@@ -61,12 +63,12 @@ export const StepInvestment = ({
 
   const handleInputBlur = () => {
     if (investmentAmount === '') {
-      onInvestmentAmountChange('0');
+      onInvestmentAmountChange(MIN_INVESTMENT.toFixed(2));
       return;
     }
     const parsed = parseFloat(investmentAmount);
-    if (isNaN(parsed) || parsed < 0) {
-      onInvestmentAmountChange('0');
+    if (isNaN(parsed) || parsed < MIN_INVESTMENT) {
+      onInvestmentAmountChange(MIN_INVESTMENT.toFixed(2));
     } else if (parsed > available) {
       onInvestmentAmountChange(available.toFixed(2));
     }
