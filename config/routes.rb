@@ -11,6 +11,14 @@ Rails.application.routes.draw do
         resource :chart, only: [:show], controller: 'bots/chart'
       end
 
+      resource :exchange_account, only: [:create] do
+        collection do
+          get :current, action: :show
+          patch :current, action: :update
+          post :test
+        end
+      end
+
       namespace :exchange do
         resource :pairs, only: [:show]
         resource :balance, only: [:show]
