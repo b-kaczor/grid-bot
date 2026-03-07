@@ -57,6 +57,7 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
     grid_level = order.grid_level.reload
     redis_state.update_on_fill(bot, grid_level, trade)
     broadcast_fill(bot, grid_level, trade, redis_state)
+    check_risk(bot, order.avg_fill_price)
   end
 
   def find_order(order_data, order_data_json, retry_count)
@@ -238,6 +239,14 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
       Rails.logger.warn("[Fill] Fee in unexpected coin #{order.fee_coin} for order #{order.id}")
       BigDecimal('0')
     end
+  end
+
+  def check_risk(bot, price)
+    return unless price
+
+    Grid::RiskManager.new(bot, current_price: price).check!
+  rescue StandardError => e
+    Rails.logger.error("[Fill] Risk check failed for bot #{bot.id}: #{e.message}")
   end
 
   def broadcast_fill(bot, grid_level, trade, redis_state)

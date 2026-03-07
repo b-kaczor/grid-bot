@@ -296,6 +296,36 @@ RSpec.describe OrderFillWorker do
       end
     end
 
+    context 'with risk check after fill' do
+      let(:risk_manager) { instance_double(Grid::RiskManager) }
+
+      before do
+        buy_level
+        sell_level
+        buy_order
+
+        allow(client).to receive(:place_order).and_return(
+          Exchange::Response.new(success: true, data: { orderId: 'counter-sell-1' })
+        )
+        allow(Grid::RiskManager).to receive(:new).and_return(risk_manager)
+        allow(risk_manager).to receive(:check!).and_return(nil)
+      end
+
+      it 'calls RiskManager.check! with the fill price' do
+        worker.perform(Oj.dump(fill_data(buy_order)))
+        expect(Grid::RiskManager).to have_received(:new).with(bot, current_price: buy_order.price)
+        expect(risk_manager).to have_received(:check!)
+      end
+
+      it 'does not interrupt fill processing when risk check raises' do
+        allow(risk_manager).to receive(:check!).and_raise(StandardError, 'test error')
+        allow(Rails.logger).to receive(:error)
+        worker.perform(Oj.dump(fill_data(buy_order)))
+        expect(buy_order.reload.status).to eq('filled')
+        expect(Rails.logger).to have_received(:error).with(/Risk check failed/)
+      end
+    end
+
     context 'with boundary levels' do
       before do
         buy_level.update!(level_index: 0)
