@@ -7,8 +7,6 @@ RSpec.describe 'Dashboard', type: :feature do
 
   before do
     stub_exchange_client
-    allow(BotInitializerJob).to receive(:perform_async)
-    allow(BalanceSnapshotWorker).to receive(:perform_async)
   end
 
   describe 'bot card display' do
@@ -47,7 +45,7 @@ RSpec.describe 'Dashboard', type: :feature do
 
       expect(page).to have_content('No bots yet')
       expect(page).to have_content('Create your first grid trading bot')
-      expect(page).to have_content('Create Bot')
+      expect(page).to have_content(/create bot/i)
     end
   end
 end

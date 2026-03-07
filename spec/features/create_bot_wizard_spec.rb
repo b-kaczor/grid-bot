@@ -7,8 +7,6 @@ RSpec.describe 'Create Bot Wizard', type: :feature do
 
   before do
     stub_exchange_client
-    allow(BotInitializerJob).to receive(:perform_async)
-    allow(BalanceSnapshotWorker).to receive(:perform_async)
   end
 
   describe 'step 1 - pair selection' do

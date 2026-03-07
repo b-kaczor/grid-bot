@@ -16,6 +16,9 @@ RSpec.configure do |config|
   end
 
   config.after(:each, type: :feature) do
+    # Reset browser sessions first to ensure Puma finishes all requests
+    # before truncating tables (prevents deadlocks)
+    Capybara.reset_sessions!
     DatabaseCleaner.clean
   end
 end

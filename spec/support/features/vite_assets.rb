@@ -8,12 +8,23 @@ VITE_DIST_DIR = VITE_APP_DIR.join('dist')
 VITE_INDEX    = Rails.public_path.join('index.html')
 VITE_ASSETS   = Rails.public_path.join('vite-assets')
 
+# Check if the existing dist was built with test env vars.
+# A dev build has localhost:3000 as baseURL; test build has /api/v1.
+def vite_build_stale?
+  return true unless VITE_DIST_DIR.join('index.html').exist?
+  return true if ENV['FORCE_VITE_BUILD']
+
+  js_files = Dir.glob(VITE_DIST_DIR.join('vite-assets', '*.js').to_s)
+  return true if js_files.empty?
+
+  File.read(js_files.first).include?('localhost:3000')
+end
+
 RSpec.configure do |config|
   config.before(:suite) do
     next unless RSpec.configuration.files_to_run.any? { |f| f.include?('spec/features') }
 
-    # Build Vite assets with test-appropriate env vars (skip if dist/ is fresh)
-    unless VITE_DIST_DIR.join('index.html').exist? && !ENV['FORCE_VITE_BUILD']
+    if vite_build_stale?
       system(
         {
           'VITE_API_URL' => '/api/v1',
@@ -28,12 +39,11 @@ RSpec.configure do |config|
     # Copy index.html to public/ root so React Router paths work at /
     FileUtils.cp(VITE_DIST_DIR.join('index.html'), VITE_INDEX)
 
-    # Symlink dist/assets -> public/vite-assets (avoids collision with Rails asset pipeline)
+    # Symlink dist/vite-assets -> public/vite-assets
     FileUtils.rm_rf(VITE_ASSETS)
     FileUtils.ln_s(VITE_DIST_DIR.join('vite-assets'), VITE_ASSETS)
 
-    # Wrap the Capybara app with SPA middleware for client-side routing fallback.
-    # Cannot use Rails.application.config.middleware because the stack is frozen after boot.
+    # Wrap the Capybara app with SPA middleware for client-side routing fallback
     Capybara.app = RackSpaMiddleware.new(Rails.application, index_path: VITE_INDEX.to_s)
   end
 

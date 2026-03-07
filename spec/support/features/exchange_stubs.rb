@@ -1,30 +1,62 @@
 # frozen_string_literal: true
 
 module Features
-  module ExchangeStubs
-    def stub_exchange_client
-      client = instance_double(Bybit::RestClient)
-      allow(Bybit::RestClient).to receive(:new).and_return(client)
+  # A fake Bybit client that returns canned responses.
+  # Used in feature specs where RSpec allow/receive stubs don't work across threads.
+  class FakeBybitClient
+    def get_instruments_info # rubocop:disable Naming/AccessorMethodName
+      Exchange::Response.new(success: true, data: { list: instrument_list })
+    end
 
-      allow(client).to receive_messages(
-        get_instruments_info: instruments_response,
-        get_tickers: tickers_response,
-        get_wallet_balance: wallet_balance_response,
-        set_dcp: ok_response,
-        cancel_all_orders: ok_response,
-        cancel_order: ok_response
+    def get_tickers # rubocop:disable Naming/AccessorMethodName
+      Exchange::Response.new(
+        success: true,
+        data: {
+          list: [
+            { symbol: 'ETHUSDT', lastPrice: '2500.00' },
+            { symbol: 'BTCUSDT', lastPrice: '45000.00' }
+          ],
+        }
       )
+    end
 
-      stub_batch_place(client)
-      stub_single_place(client)
+    def get_wallet_balance # rubocop:disable Naming/AccessorMethodName
+      Exchange::Response.new(
+        success: true,
+        data: {
+          list: [
+            {
+              coin: [
+                { coin: 'ETH', availableToWithdraw: '10', locked: '0', walletBalance: '10' },
+                { coin: 'USDT', availableToWithdraw: '25000', locked: '0', walletBalance: '25000' }
+              ],
+            }
+          ],
+        }
+      )
+    end
 
-      client
+    def set_dcp(**) = ok_response
+    def cancel_all_orders(**) = ok_response
+    def cancel_order(**) = ok_response
+
+    def batch_place_orders(orders:, **_rest)
+      result_list = orders.map do |order|
+        @counter = (@counter || 0) + 1
+        { orderId: "ex-#{@counter}", orderLinkId: order[:order_link_id], code: '0' }
+      end
+      Exchange::Response.new(success: true, data: { list: result_list })
+    end
+
+    def place_order(**)
+      @counter = (@counter || 100) + 1
+      Exchange::Response.new(success: true, data: { orderId: "ex-#{@counter}" })
     end
 
     private
 
-    def instruments_response
-      Exchange::Response.new(success: true, data: { list: instrument_list })
+    def ok_response
+      Exchange::Response.new(success: true, data: {})
     end
 
     def instrument_list
@@ -45,60 +77,34 @@ module Features
         }
       ]
     end
+  end
 
-    def tickers_response
-      Exchange::Response.new(
-        success: true,
-        data: {
-          list: [
-            { symbol: 'ETHUSDT', lastPrice: '2500.00' },
-            { symbol: 'BTCUSDT', lastPrice: '45000.00' }
-          ],
-        }
-      )
-    end
-
-    def wallet_balance_response
-      Exchange::Response.new(
-        success: true,
-        data: {
-          list: [
-            {
-              coin: [
-                { coin: 'ETH', availableToWithdraw: '10', locked: '0', walletBalance: '10' },
-                { coin: 'USDT', availableToWithdraw: '25000', locked: '0', walletBalance: '25000' }
-              ],
-            }
-          ],
-        }
-      )
-    end
-
-    def ok_response
-      Exchange::Response.new(success: true, data: {})
-    end
-
-    def stub_batch_place(client)
-      counter = { value: 0 }
-      allow(client).to receive(:batch_place_orders) do |args|
-        result_list = args[:orders].map do |order|
-          counter[:value] += 1
-          { orderId: "ex-#{counter[:value]}", orderLinkId: order[:order_link_id], code: '0' }
-        end
-        Exchange::Response.new(success: true, data: { list: result_list })
+  # Prepend module to intercept Bybit::RestClient.new across threads.
+  # Only active during feature spec execution to avoid contaminating unit specs.
+  module BybitOverride
+    def new(**)
+      if Features::BotHelpers.feature_spec_active?
+        Features::FakeBybitClient.new
+      else
+        super
       end
     end
+  end
 
-    def stub_single_place(client)
-      counter = { value: 100 }
-      allow(client).to receive(:place_order) do |**_args|
-        counter[:value] += 1
-        Exchange::Response.new(success: true, data: { orderId: "ex-#{counter[:value]}" })
-      end
+  module ExchangeStubs
+    def stub_exchange_client
+      # No-op in feature specs. The global prepend handles this.
+      Features::FakeBybitClient.new
     end
   end
 end
 
 RSpec.configure do |config|
   config.include Features::ExchangeStubs, type: :feature
+
+  config.before(:suite) do
+    next unless RSpec.configuration.files_to_run.any? { |f| f.include?('spec/features') }
+
+    Bybit::RestClient.singleton_class.prepend(Features::BybitOverride)
+  end
 end

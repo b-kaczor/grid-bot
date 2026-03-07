@@ -1,3 +1,5 @@
+import type { Trade } from './trade.ts';
+
 export interface Bot {
   id: number;
   pair: string;
@@ -57,4 +59,4 @@ export interface CreateBotParams {
 }
 
 // Re-export Trade for convenience
-export type { Trade } from './trade.ts';
+export type { Trade };

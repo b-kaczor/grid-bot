@@ -3,9 +3,15 @@
 module Features
   # Thread-safe MockRedis singleton for feature specs.
   # Both the test thread and Puma server thread share this instance.
+  # Only intercepts Redis.new when a feature spec is actively running;
+  # non-feature specs get a real Redis instance via super.
   module RedisOverride
     def new(*)
-      Features::BotHelpers.mock_redis
+      if Features::BotHelpers.feature_spec_active?
+        Features::BotHelpers.mock_redis
+      else
+        super
+      end
     end
   end
 
@@ -65,6 +71,14 @@ module Features
       @mock_redis = MockRedis.new
     end
 
+    def self.feature_spec_active?
+      @feature_spec_active == true
+    end
+
+    def self.feature_spec_active=(value)
+      @feature_spec_active = value
+    end
+
     private
 
     def seed_stats(bot)
@@ -108,6 +122,11 @@ RSpec.configure do |config|
   end
 
   config.before(:each, type: :feature) do
+    Features::BotHelpers.feature_spec_active = true
     Features::BotHelpers.reset_mock_redis!
+  end
+
+  config.after(:each, type: :feature) do
+    Features::BotHelpers.feature_spec_active = false
   end
 end

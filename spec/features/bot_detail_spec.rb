@@ -23,8 +23,6 @@ RSpec.describe 'Bot Detail', type: :feature do
 
   before do
     stub_exchange_client
-    allow(BotInitializerJob).to receive(:perform_async)
-    allow(BalanceSnapshotWorker).to receive(:perform_async)
     seed_grid_levels_for(bot)
   end
 
