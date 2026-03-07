@@ -4,6 +4,12 @@ module Features
   # A fake Bybit client that returns canned responses.
   # Used in feature specs where RSpec allow/receive stubs don't work across threads.
   class FakeBybitClient
+    class << self
+      attr_accessor :force_failure
+    end
+
+    self.force_failure = false
+
     def get_instruments_info # rubocop:disable Naming/AccessorMethodName
       Exchange::Response.new(success: true, data: { list: instrument_list })
     end
@@ -21,6 +27,10 @@ module Features
     end
 
     def get_wallet_balance # rubocop:disable Naming/AccessorMethodName
+      if self.class.force_failure
+        return Exchange::Response.new(success: false, data: {}, error_message: 'Invalid API key')
+      end
+
       Exchange::Response.new(
         success: true,
         data: {
@@ -106,5 +116,9 @@ RSpec.configure do |config|
     next unless RSpec.configuration.files_to_run.any? { |f| f.include?('spec/features') }
 
     Bybit::RestClient.singleton_class.prepend(Features::BybitOverride)
+  end
+
+  config.after(:each, type: :feature) do
+    Features::FakeBybitClient.force_failure = false
   end
 end
