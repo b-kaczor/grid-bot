@@ -152,6 +152,17 @@ export const BotDetail = () => {
               Stop
             </Button>
           )}
+          {bot.status === 'error' && (
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={handleResume}
+              disabled={updateBot.isPending}
+            >
+              Retry
+            </Button>
+          )}
           {(bot.status === 'stopped' || isPending || bot.status === 'error') && (
             <Button
               size="small"

@@ -97,7 +97,10 @@ module Api
 
       def start_or_resume!
         if %w[pending error].include?(@bot.status)
-          @bot.grid_levels.destroy_all if @bot.status == 'error'
+          if @bot.status == 'error'
+            @bot.orders.delete_all
+            @bot.grid_levels.delete_all
+          end
           @bot.update!(status: 'initializing')
           BotInitializerJob.perform_async(@bot.id)
         else

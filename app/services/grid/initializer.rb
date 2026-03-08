@@ -5,7 +5,7 @@ module Grid
     class Error < StandardError; end
 
     ORDER_LINK_ID_PATTERN = /\Ag(\d+)-L(\d+)-(B|S)-(\d+)\z/
-    BATCH_SIZE = 20
+    BATCH_SIZE = 10
 
     def initialize(bot)
       @bot = bot
@@ -28,7 +28,7 @@ module Grid
       current_price = fetch_current_price!
       levels, classification, qty = calculate_grid(current_price)
 
-      ensure_base_balance!(classification, qty, current_price)
+      ensure_base_balance!(classification, qty)
       grid_levels = persist_grid_levels(levels, classification)
       place_orders_in_batches(grid_levels, classification, qty)
 
@@ -67,6 +67,7 @@ module Grid
         base_precision: decimal_precision(lot_filter[:basePrecision]),
         quote_precision: decimal_precision(price_filter[:tickSize]),
         min_order_qty: lot_filter[:minOrderQty],
+        max_order_qty: lot_filter[:maxOrderQty],
         min_order_amt: lot_filter[:minOrderAmt]
       )
     end
@@ -97,11 +98,12 @@ module Grid
         tick_size: @bot.tick_size,
         base_precision: @bot.base_precision,
         min_order_amt: @bot.min_order_amt,
-        min_order_qty: @bot.min_order_qty
+        min_order_qty: @bot.min_order_qty,
+        max_order_qty: @bot.max_order_qty
       )
     end
 
-    def ensure_base_balance!(classification, qty, _current_price) # rubocop:disable Metrics/AbcSize
+    def ensure_base_balance!(classification, qty) # rubocop:disable Metrics/AbcSize
       sell_count = classification.count { |_, side| side == :sell }
       return if sell_count.zero?
 
@@ -144,58 +146,26 @@ module Grid
       placeable = grid_levels.each_with_index.reject { |_gl, i| classification[i] == :skip }
       total_count = placeable.size
       failed_count = 0
+      failure_details = []
 
-      placeable.each_slice(BATCH_SIZE) do |batch|
-        link_id_to_level = {}
-        orders = batch.map do |gl, _index|
-          req = build_order_request(gl, classification[gl.level_index], qty)
-          link_id_to_level[req[:order_link_id]] = gl
-          req
-        end
+      placeable.each do |(gl, _)|
+        side = classification[gl.level_index]
+        link_id = generate_order_link_id(gl, side)
 
-        response = @client.batch_place_orders(symbol: @bot.pair, orders:)
+        response = @client.place_order(
+          symbol: @bot.pair, side: side.to_s.capitalize, order_type: 'Limit',
+          qty: qty.to_s, price: gl.price.to_s, order_link_id: link_id
+        )
 
-        if response.success?
-          failed_count += process_batch_response(response, link_id_to_level)
+        if response.success? && response.data[:orderId].present?
+          record_successful_order(gl, response.data.merge(orderLinkId: link_id))
         else
-          Rails.logger.error("[Initializer] Batch failed entirely: #{response.error_message}")
-          failed_count += batch.size
+          failure_details << { code: response.error_code, msg: response.error_message, level: gl.level_index }
+          failed_count += 1
         end
       end
 
       check_failure_threshold!(failed_count, total_count)
-    end
-
-    def build_order_request(grid_level, side, qty)
-      {
-        side: side.to_s.capitalize,
-        order_type: 'Limit',
-        qty:,
-        price: grid_level.price,
-        order_link_id: generate_order_link_id(grid_level, side),
-        time_in_force: 'GTC',
-      }
-    end
-
-    def process_batch_response(response, link_id_to_level)
-      failed = 0
-      result_list = response.data[:list] || []
-
-      result_list.each do |entry|
-        gl = link_id_to_level[entry[:orderLinkId]]
-        next unless gl
-
-        if entry[:code].to_s == '0'
-          record_successful_order(gl, entry)
-        else
-          Rails.logger.warn(
-            "[Initializer] Order failed for level #{gl.level_index}: #{entry[:msg]} (code: #{entry[:code]})"
-          )
-          failed += 1
-        end
-      end
-
-      failed
     end
 
     def record_successful_order(grid_level, entry)

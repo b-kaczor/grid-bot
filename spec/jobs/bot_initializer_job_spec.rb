@@ -29,8 +29,8 @@ RSpec.describe BotInitializerJob, type: :job do
       expect(described_class.sidekiq_options['queue'].to_s).to eq('critical')
     end
 
-    it 'retries once' do
-      expect(described_class.sidekiq_options['retry']).to eq(1)
+    it 'does not retry' do
+      expect(described_class.sidekiq_options['retry']).to eq(0)
     end
   end
 end

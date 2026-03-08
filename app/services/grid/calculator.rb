@@ -10,11 +10,11 @@ module Grid
     class ValidationError < StandardError; end
 
     attr_reader :lower, :upper, :count, :spacing, :tick_size, :base_precision,
-                :min_order_amt, :min_order_qty
+                :min_order_amt, :min_order_qty, :max_order_qty
 
     def initialize(lower:, upper:, count:, spacing: :arithmetic,
                    tick_size: nil, base_precision: nil,
-                   min_order_amt: nil, min_order_qty: nil
+                   min_order_amt: nil, min_order_qty: nil, max_order_qty: nil
     )
       @lower = BigDecimal(lower.to_s)
       @upper = BigDecimal(upper.to_s)
@@ -24,6 +24,7 @@ module Grid
       @base_precision = base_precision
       @min_order_amt = min_order_amt ? BigDecimal(min_order_amt.to_s) : nil
       @min_order_qty = min_order_qty ? BigDecimal(min_order_qty.to_s) : nil
+      @max_order_qty = max_order_qty ? BigDecimal(max_order_qty.to_s) : nil
     end
 
     def levels
@@ -61,26 +62,36 @@ module Grid
       raise ValidationError, 'investment and current_price are required' unless investment && current_price
 
       qty = quantity_per_level(investment:, current_price:)
+      validate_qty_limits!(qty)
+      validate_notional!(qty)
+      true
+    end
 
+    private
+
+    def validate_qty_limits!(qty)
       if min_order_qty && qty < min_order_qty
         raise ValidationError,
               "Quantity per level #{qty} is below minimum order quantity #{min_order_qty}"
       end
 
-      if min_order_amt
-        levels.each_with_index do |level, _index|
-          notional = qty * level
-          if notional < min_order_amt
-            raise ValidationError,
-                  "Notional #{notional} at price #{level} is below minimum order amount #{min_order_amt}"
-          end
-        end
-      end
+      return unless max_order_qty && qty > max_order_qty
 
-      true
+      raise ValidationError,
+            "Quantity per level #{qty} exceeds maximum order quantity #{max_order_qty}"
     end
 
-    private
+    def validate_notional!(qty)
+      return unless min_order_amt
+
+      levels.each do |level|
+        notional = qty * level
+        next unless notional < min_order_amt
+
+        raise ValidationError,
+              "Notional #{notional} at price #{level} is below minimum order amount #{min_order_amt}"
+      end
+    end
 
     def compute_levels
       raw = case spacing

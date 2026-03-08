@@ -37,7 +37,7 @@ RSpec.describe Grid::Initializer do
     stub_instrument_info
     stub_ticker
     stub_wallet_balance
-    stub_batch_place_orders
+    stub_place_order
     stub_set_dcp
   end
 
@@ -172,9 +172,9 @@ RSpec.describe Grid::Initializer do
       end
     end
 
-    context 'with partial batch failure (< 50%)' do
+    context 'with partial order failure (< 50%)' do
       before do
-        stub_batch_place_orders_with_partial_failure(1)
+        stub_place_order_with_partial_failure(1)
       end
 
       it 'still transitions to running' do
@@ -189,9 +189,9 @@ RSpec.describe Grid::Initializer do
       end
     end
 
-    context 'with majority batch failure (> 50%)' do
+    context 'with majority order failure (> 50%)' do
       before do
-        stub_batch_place_orders_with_majority_failure
+        stub_place_order_all_fail
       end
 
       it 'transitions to error' do
@@ -206,9 +206,6 @@ RSpec.describe Grid::Initializer do
       end
 
       it 'places a market buy order' do
-        allow(client).to receive(:place_order).and_return(
-          Exchange::Response.new(success: true, data: { orderId: 'market-123' })
-        )
         initializer.call
         expect(client).to have_received(:place_order).with(
           hash_including(side: 'Buy', order_type: 'Market')
@@ -309,31 +306,35 @@ RSpec.describe Grid::Initializer do
     )
   end
 
-  def stub_batch_place_orders
-    allow(client).to receive(:batch_place_orders) do |args|
-      orders = args[:orders]
-      result_list = orders.each_with_index.map do |order, i|
-        {
-          orderId: "exchange-order-#{i}",
-          orderLinkId: order[:order_link_id],
-          code: '0',
-        }
-      end
-      Exchange::Response.new(success: true, data: { list: result_list })
+  def stub_place_order
+    @place_order_counter = 0
+    allow(client).to receive(:place_order) do |args|
+      next Exchange::Response.new(success: true, data: { orderId: 'market-123' }) if args[:order_type] == 'Market'
+
+      @place_order_counter += 1
+      Exchange::Response.new(success: true, data: { orderId: "exchange-order-#{@place_order_counter}" })
     end
   end
 
-  def stub_batch_place_orders_with_partial_failure(fail_count)
-    allow(client).to receive(:batch_place_orders) do |args|
-      orders = args[:orders]
-      result_list = orders.each_with_index.map do |order, i|
-        if i < fail_count
-          { orderId: '', orderLinkId: order[:order_link_id], code: '170213', msg: 'Test failure' }
-        else
-          { orderId: "exchange-order-#{i}", orderLinkId: order[:order_link_id], code: '0' }
-        end
+  def stub_place_order_with_partial_failure(fail_count)
+    @place_order_counter = 0
+    allow(client).to receive(:place_order) do |args|
+      next Exchange::Response.new(success: true, data: { orderId: 'market-123' }) if args[:order_type] == 'Market'
+
+      @place_order_counter += 1
+      if @place_order_counter <= fail_count
+        Exchange::Response.new(success: false, error_code: '170213', error_message: 'Test failure')
+      else
+        Exchange::Response.new(success: true, data: { orderId: "exchange-order-#{@place_order_counter}" })
       end
-      Exchange::Response.new(success: true, data: { list: result_list })
+    end
+  end
+
+  def stub_place_order_all_fail
+    allow(client).to receive(:place_order) do |args|
+      next Exchange::Response.new(success: true, data: { orderId: 'market-123' }) if args[:order_type] == 'Market'
+
+      Exchange::Response.new(success: false, error_code: '170213', error_message: 'Test failure')
     end
   end
 
@@ -341,15 +342,5 @@ RSpec.describe Grid::Initializer do
     allow(client).to receive(:set_dcp).and_return(
       Exchange::Response.new(success: true, data: {})
     )
-  end
-
-  def stub_batch_place_orders_with_majority_failure
-    allow(client).to receive(:batch_place_orders) do |args|
-      orders = args[:orders]
-      result_list = orders.map do |order|
-        { orderId: '', orderLinkId: order[:order_link_id], code: '170213', msg: 'Test failure' }
-      end
-      Exchange::Response.new(success: true, data: { list: result_list })
-    end
   end
 end

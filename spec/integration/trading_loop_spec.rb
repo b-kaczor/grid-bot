@@ -44,19 +44,7 @@ RSpec.describe 'Trading Loop Integration', type: :integration do # rubocop:disab
   # --- Helpers ---
 
   def stub_exchange_order_stubs
-    stub_batch_place_orders
     stub_single_place_order
-  end
-
-  def stub_batch_place_orders
-    counter = order_counter
-    allow(client).to receive(:batch_place_orders) do |args|
-      result_list = args[:orders].map do |order|
-        counter[:value] += 1
-        { orderId: "ex-#{counter[:value]}", orderLinkId: order[:order_link_id], code: '0' }
-      end
-      Exchange::Response.new(success: true, data: { list: result_list })
-    end
   end
 
   def stub_single_place_order
