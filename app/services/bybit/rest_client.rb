@@ -66,7 +66,7 @@ module Bybit
     # Orders (auth required)
 
     def place_order(symbol:, side:, order_type:, qty:, price: nil,
-                    order_link_id: nil, time_in_force: 'GTC', emergency: false
+                    order_link_id: nil, time_in_force: nil, emergency: false
     )
       params = {
         category: 'spot',
@@ -77,7 +77,7 @@ module Bybit
       }
       params[:price] = price.to_s if price
       params[:orderLinkId] = order_link_id if order_link_id
-      params[:timeInForce] = time_in_force
+      params[:timeInForce] = resolve_time_in_force(order_type, time_in_force)
       post('/v5/order/create', params, bucket: :place_order, force: emergency)
     end
 
@@ -197,8 +197,14 @@ module Bybit
         qty: order[:qty].to_s,
         price: order[:price]&.to_s,
         orderLinkId: order[:order_link_id],
-        timeInForce: order.fetch(:time_in_force, 'GTC'),
+        timeInForce: resolve_time_in_force(order[:order_type], order[:time_in_force]),
       }.compact
+    end
+
+    def resolve_time_in_force(order_type, explicit_tif)
+      return explicit_tif if explicit_tif
+
+      order_type == 'Limit' ? 'PostOnly' : nil
     end
   end
 end
