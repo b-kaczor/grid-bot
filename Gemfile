@@ -35,6 +35,7 @@ gem 'oj', '~> 3.0'
 gem 'rack-cors'
 
 group :development, :test do
+  gem 'annotaterb', '~> 4.0'
   gem 'debug', platforms: %i[mri windows]
   gem 'factory_bot_rails', '~> 6.0'
   gem 'rspec-rails', '~> 7.0'
