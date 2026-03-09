@@ -31,10 +31,11 @@ export const CreateBotWizard = () => {
     lowerPrice: '',
     upperPrice: '',
     gridCount: 20,
-    spacingType: 'arithmetic',
+    spacingType: 'geometric',
     stopLossPrice: '',
     takeProfitPrice: '',
     trailingUpEnabled: false,
+    targetProfitPct: '',
   });
   const [investmentAmount, setInvestmentAmount] = useState('');
 

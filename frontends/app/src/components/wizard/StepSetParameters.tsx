@@ -11,9 +11,10 @@ import {
   FormControlLabel,
   Switch,
   Alert,
+  InputAdornment,
 } from '@mui/material';
 import type { TradingPair } from '../../types/exchange.ts';
-import { validateParameters } from './gridParameters.ts';
+import { validateParameters, deriveGridCount, getProfitTargetWarning } from './gridParameters.ts';
 import type { GridParameters } from './gridParameters.ts';
 
 interface StepSetParametersProps {
@@ -27,12 +28,78 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
 
   const lower = parseFloat(params.lowerPrice);
   const upper = parseFloat(params.upperPrice);
+  const isGeometric = params.spacingType === 'geometric';
+
   const stepSize = !isNaN(lower) && !isNaN(upper) && params.gridCount > 1
     ? (upper - lower) / params.gridCount
     : 0;
-  const profitPerGrid = stepSize > 0 && lower > 0
-    ? (stepSize / lower) * 100
+  const profitPerGrid = !isNaN(lower) && !isNaN(upper) && lower > 0 && upper > lower && params.gridCount > 1
+    ? isGeometric
+      ? (Math.pow(upper / lower, 1 / params.gridCount) - 1) * 100
+      : (stepSize / lower) * 100
     : 0;
+
+  const isProfitActive =
+    params.targetProfitPct !== '' && parseFloat(params.targetProfitPct) > 0;
+
+  const profitWarning = getProfitTargetWarning(params);
+
+  const targetPct = parseFloat(params.targetProfitPct);
+  const showRoundingDelta =
+    isProfitActive && profitPerGrid > 0 && Math.abs(profitPerGrid - targetPct) > 0.01;
+
+  const rederiveGridCount = (newLower: number, newUpper: number, pct: number): number => {
+    const derived = deriveGridCount(newLower, newUpper, pct, params.spacingType);
+    return Math.min(Math.max(derived, 2), 200);
+  };
+
+  const handleProfitPctChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const pct = parseFloat(val);
+
+    if (val !== '' && !isNaN(pct) && pct > 0 && !isNaN(lower) && !isNaN(upper) && lower > 0 && upper > lower) {
+      onChange({ ...params, targetProfitPct: val, gridCount: rederiveGridCount(lower, upper, pct) });
+    } else {
+      onChange({ ...params, targetProfitPct: val });
+    }
+  };
+
+  const handleGridCountChange = (_e: Event, val: number | number[]) => {
+    // Escape hatch: manually changing grid count clears profit target
+    onChange({ ...params, targetProfitPct: '', gridCount: val as number });
+  };
+
+  const handleLowerPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLower = e.target.value;
+    const parsedLower = parseFloat(newLower);
+
+    if (isProfitActive) {
+      const pct = parseFloat(params.targetProfitPct);
+      if (!isNaN(parsedLower) && parsedLower > 0 && !isNaN(upper) && upper > parsedLower && !isNaN(pct) && pct > 0) {
+        onChange({ ...params, lowerPrice: newLower, gridCount: rederiveGridCount(parsedLower, upper, pct) });
+      } else {
+        onChange({ ...params, lowerPrice: newLower });
+      }
+    } else {
+      onChange({ ...params, lowerPrice: newLower });
+    }
+  };
+
+  const handleUpperPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUpper = e.target.value;
+    const parsedUpper = parseFloat(newUpper);
+
+    if (isProfitActive) {
+      const pct = parseFloat(params.targetProfitPct);
+      if (!isNaN(lower) && lower > 0 && !isNaN(parsedUpper) && parsedUpper > lower && !isNaN(pct) && pct > 0) {
+        onChange({ ...params, upperPrice: newUpper, gridCount: rederiveGridCount(lower, parsedUpper, pct) });
+      } else {
+        onChange({ ...params, upperPrice: newUpper });
+      }
+    } else {
+      onChange({ ...params, upperPrice: newUpper });
+    }
+  };
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -46,7 +113,7 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
             data-testid="input-lower-price"
             label="Lower Price"
             value={params.lowerPrice}
-            onChange={(e) => onChange({ ...params, lowerPrice: e.target.value })}
+            onChange={handleLowerPriceChange}
             error={!!errors.lowerPrice}
             helperText={errors.lowerPrice}
             type="number"
@@ -59,7 +126,7 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
             data-testid="input-upper-price"
             label="Upper Price"
             value={params.upperPrice}
-            onChange={(e) => onChange({ ...params, upperPrice: e.target.value })}
+            onChange={handleUpperPriceChange}
             error={!!errors.upperPrice}
             helperText={errors.upperPrice}
             type="number"
@@ -74,12 +141,45 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
         <Slider
           data-testid="input-grid-count"
           value={params.gridCount}
-          onChange={(_e, val) => onChange({ ...params, gridCount: val as number })}
+          onChange={handleGridCountChange}
+          disabled={isProfitActive}
           min={2}
           max={200}
           valueLabelDisplay="auto"
         />
+        {isProfitActive && (
+          <Typography variant="caption" color="text.secondary">
+            Computed from profit target
+          </Typography>
+        )}
       </Box>
+
+      {isGeometric && (
+        <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Profit target (optional)
+          </Typography>
+          <TextField
+            label="Profit % per level"
+            value={params.targetProfitPct}
+            onChange={handleProfitPctChange}
+            error={!!errors.targetProfitPct}
+            helperText={errors.targetProfitPct || ' '}
+            type="number"
+            size="small"
+            sx={{ width: { xs: '100%', sm: 200 } }}
+            slotProps={{
+              htmlInput: { step: 0.01, min: 0, max: 100 },
+              input: { endAdornment: <InputAdornment position="end">%</InputAdornment> },
+            }}
+          />
+          {profitWarning && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              {profitWarning}
+            </Alert>
+          )}
+        </Box>
+      )}
 
       <Box sx={{ mt: 2 }}>
         <Typography gutterBottom>Spacing Type</Typography>
@@ -87,7 +187,12 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
           value={params.spacingType}
           exclusive
           onChange={(_e, val) => {
-            if (val) onChange({ ...params, spacingType: val });
+            if (!val) return;
+            const next = { ...params, spacingType: val as 'arithmetic' | 'geometric' };
+            if (val === 'arithmetic' && params.targetProfitPct !== '') {
+              next.targetProfitPct = '';
+            }
+            onChange(next);
           }}
           size="small"
         >
@@ -151,6 +256,7 @@ export const StepSetParameters = ({ pair, params, onChange }: StepSetParametersP
           </Typography>
           <Typography variant="body2">
             Profit per grid: {profitPerGrid > 0 ? `${profitPerGrid.toFixed(2)}%` : '—'}
+            {showRoundingDelta && ` (target: ${targetPct.toFixed(2)}%)`}
           </Typography>
         </CardContent>
       </Card>
