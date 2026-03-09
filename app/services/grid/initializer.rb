@@ -24,6 +24,7 @@ module Grid
     private
 
     def execute_initialization! # rubocop:disable Metrics/AbcSize
+      @placed_order_link_ids = []
       fetch_and_store_instrument_info!
       current_price = fetch_current_price!
       levels, classification, qty = calculate_grid(current_price)
@@ -37,6 +38,7 @@ module Grid
       seed_redis
       kick_off_reconciliation
     rescue StandardError => e
+      rollback_exchange_orders!
       transition_to!('error') unless @bot.status == 'error'
       Rails.logger.error("[Initializer] Bot #{@bot.id} failed: #{e.message}")
       raise Error, e.message unless e.is_a?(Error)
@@ -170,6 +172,7 @@ module Grid
 
     def record_successful_order(grid_level, entry)
       link_id = entry[:orderLinkId]
+      @placed_order_link_ids << link_id
 
       grid_level.update!(
         status: 'active',
@@ -198,6 +201,25 @@ module Grid
 
       transition_to!('error')
       raise Error, "Too many order failures: #{failed_count}/#{total_count} (#{(failure_rate * 100).round}%)"
+    end
+
+    def rollback_exchange_orders!
+      return unless @client
+      return if @placed_order_link_ids.blank?
+
+      @placed_order_link_ids.each { |link_id| cancel_placed_order(link_id) }
+      Rails.logger.info("[Initializer] Rollback: cancelled #{@placed_order_link_ids.size} orders for bot #{@bot.id}")
+    rescue StandardError => e
+      Rails.logger.warn("[Initializer] Rollback failed for bot #{@bot.id}: #{e.message}")
+    end
+
+    def cancel_placed_order(link_id)
+      response = @client.cancel_order(symbol: @bot.pair, order_link_id: link_id)
+      return if response.success?
+
+      Rails.logger.warn("[Initializer] Rollback: cancel #{link_id} failed: #{response.error_message}")
+    rescue StandardError => e
+      Rails.logger.warn("[Initializer] Rollback exception cancelling #{link_id}: #{e.message}")
     end
 
     def generate_order_link_id(grid_level, side)
