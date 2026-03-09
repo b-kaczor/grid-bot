@@ -371,25 +371,25 @@ RSpec.describe Grid::Initializer do
   end
 
   def stub_place_order
-    @place_order_counter = 0
+    counter = 0
     allow(client).to receive(:place_order) do |args|
       next Exchange::Response.new(success: true, data: { orderId: 'market-123' }) if args[:order_type] == 'Market'
 
-      @place_order_counter += 1
-      Exchange::Response.new(success: true, data: { orderId: "exchange-order-#{@place_order_counter}" })
+      counter += 1
+      Exchange::Response.new(success: true, data: { orderId: "exchange-order-#{counter}" })
     end
   end
 
   def stub_place_order_with_partial_failure(fail_count)
-    @place_order_counter = 0
+    counter = 0
     allow(client).to receive(:place_order) do |args|
       next Exchange::Response.new(success: true, data: { orderId: 'market-123' }) if args[:order_type] == 'Market'
 
-      @place_order_counter += 1
-      if @place_order_counter <= fail_count
+      counter += 1
+      if counter <= fail_count
         Exchange::Response.new(success: false, error_code: '170213', error_message: 'Test failure')
       else
-        Exchange::Response.new(success: true, data: { orderId: "exchange-order-#{@place_order_counter}" })
+        Exchange::Response.new(success: true, data: { orderId: "exchange-order-#{counter}" })
       end
     end
   end
