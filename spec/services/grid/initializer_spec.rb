@@ -39,6 +39,7 @@ RSpec.describe Grid::Initializer do
     stub_wallet_balance
     stub_place_order
     stub_set_dcp
+    stub_cancel_order
   end
 
   subject(:initializer) { described_class.new(bot) }
@@ -251,6 +252,69 @@ RSpec.describe Grid::Initializer do
         expect(bot.reload.status).to eq('error')
       end
     end
+
+    context 'when order placement fails above threshold (rollback)' do
+      before do
+        stub_place_order_with_partial_failure(3)
+      end
+
+      it 'cancels each previously placed order' do
+        expect { initializer.call }.to raise_error(described_class::Error, /Too many order failures/)
+        expect(client).to have_received(:cancel_order).at_least(:once)
+      end
+
+      it 'passes order_link_id to cancel_order' do
+        expect { initializer.call }.to raise_error(described_class::Error)
+        expect(client).to have_received(:cancel_order).with(hash_including(:order_link_id))
+      end
+    end
+
+    context 'when failure occurs before any orders are placed (ticker fails)' do
+      before do
+        allow(client).to receive(:get_tickers).and_return(
+          Exchange::Response.new(success: false, error_message: 'Ticker error')
+        )
+      end
+
+      it 'does not call cancel_order' do
+        expect { initializer.call }.to raise_error(described_class::Error)
+        expect(client).not_to have_received(:cancel_order)
+      end
+    end
+
+    context 'when cancel_order returns failure during rollback' do
+      before do
+        stub_place_order_with_partial_failure(3)
+        allow(client).to receive(:cancel_order).and_return(
+          Exchange::Response.new(success: false, error_message: 'Cancel failed')
+        )
+      end
+
+      it 'still raises the original error' do
+        expect { initializer.call }.to raise_error(described_class::Error, /Too many order failures/)
+      end
+
+      it 'transitions bot to error status' do
+        expect { initializer.call }.to raise_error(described_class::Error)
+        expect(bot.reload.status).to eq('error')
+      end
+    end
+
+    context 'when cancel_order raises exception during rollback' do
+      before do
+        stub_place_order_with_partial_failure(3)
+        allow(client).to receive(:cancel_order).and_raise(StandardError, 'Network error')
+      end
+
+      it 'still raises the original error' do
+        expect { initializer.call }.to raise_error(described_class::Error, /Too many order failures/)
+      end
+
+      it 'transitions bot to error status' do
+        expect { initializer.call }.to raise_error(described_class::Error)
+        expect(bot.reload.status).to eq('error')
+      end
+    end
   end
 
   # --- Helper methods for stubbing API responses ---
@@ -340,6 +404,12 @@ RSpec.describe Grid::Initializer do
 
   def stub_set_dcp
     allow(client).to receive(:set_dcp).and_return(
+      Exchange::Response.new(success: true, data: {})
+    )
+  end
+
+  def stub_cancel_order
+    allow(client).to receive(:cancel_order).and_return(
       Exchange::Response.new(success: true, data: {})
     )
   end
