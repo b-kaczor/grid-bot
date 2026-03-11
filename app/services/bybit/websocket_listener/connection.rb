@@ -56,14 +56,25 @@ module Bybit
       end
 
       def register_dcp(account)
-        client = Bybit::RestClient.new(api_key: account.api_key, api_secret: account.api_secret)
-        response = client.set_dcp(time_window: 40)
+        if account.environment == 'demo'
+          Rails.logger.info('[WS] DCP skipped (not supported on demo)')
+          return
+        end
+        response = dcp_client(account).set_dcp(time_window: 40)
         if response.success?
           Rails.logger.info('[WS] DCP registered (40s window)')
           @redis.set('grid:dcp:registered_at', Time.current.to_i.to_s)
         else
           Rails.logger.warn("[WS] DCP registration failed: #{response.error_message}")
         end
+      end
+
+      def dcp_client(account)
+        Bybit::RestClient.new(
+          api_key: account.api_key,
+          api_secret: account.api_secret,
+          environment: account.environment
+        )
       end
 
       def read_loop(connection, parent_task)
