@@ -55,7 +55,7 @@ module Bybit
       INITIAL_BACKOFF
     rescue Protocol::WebSocket::ClosedError => e
       handle_close_error(e, task, backoff)
-    rescue Async::TimeoutError, IOError, Errno::ECONNRESET, Errno::ECONNREFUSED => e
+    rescue Async::TimeoutError, IOError, Errno::ECONNRESET, Errno::ECONNREFUSED, Protocol::HTTP2::StreamError => e
       handle_connection_error(e, backoff)
     end
 

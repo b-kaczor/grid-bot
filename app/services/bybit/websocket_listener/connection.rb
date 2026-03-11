@@ -8,7 +8,7 @@ module Bybit
         return unless account
 
         url = ENV.fetch('BYBIT_WS_URL') { Bybit::Urls.for(account.environment)[:ws_private] }
-        endpoint = Async::HTTP::Endpoint.parse(url)
+        endpoint = Async::HTTP::Endpoint.parse(url, alpn_protocols: Async::HTTP::Protocol::HTTP11.names)
 
         Async::WebSocket::Client.connect(endpoint) do |ws|
           setup_connection(ws, account)
