@@ -52,7 +52,11 @@ module Bybit
         when 'auth'
           log_auth_result(data)
         when 'subscribe'
-          Rails.logger.info("[WS] Subscription confirmed: #{data[:conn_id]}")
+          if data[:success]
+            Rails.logger.info("[WS] Subscription confirmed: #{data[:conn_id]}")
+          else
+            Rails.logger.error("[WS] Subscription failed: #{data[:ret_msg]}")
+          end
         end
       end
 

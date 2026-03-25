@@ -61,34 +61,29 @@ RSpec.describe Bybit::WebsocketListener do
   end
 
   describe 'subscription' do
-    before do
-      allow(Bot).to receive(:running).and_return(Bot.none)
-    end
-
-    it 'subscribes to core topics including dcp' do
+    it 'subscribes to private topics without dcp or tickers' do
       connection = instance_double(Protocol::WebSocket::Connection)
       allow(connection).to receive(:send_text)
 
-      listener.send(:subscribe, connection)
+      listener.send(:subscribe_private, connection)
 
       expect(connection).to have_received(:send_text) do |json|
         data = Oj.load(json, symbol_keys: true)
         expect(data[:op]).to eq('subscribe')
-        expect(data[:args]).to include('order.spot', 'execution.spot', 'wallet', 'dcp')
+        expect(data[:args]).to match_array(%w[order.spot execution.spot wallet])
       end
     end
 
-    it 'includes ticker topics for running bot pairs' do
-      running_scope = double(pluck: %w[ETHUSDT BTCUSDT ETHUSDT])
-      allow(Bot).to receive(:running).and_return(running_scope)
+    it 'subscribes to ticker topics on the public connection' do
       connection = instance_double(Protocol::WebSocket::Connection)
       allow(connection).to receive(:send_text)
 
-      listener.send(:subscribe, connection)
+      listener.send(:subscribe_public, connection, %w[ETHUSDT BTCUSDT])
 
       expect(connection).to have_received(:send_text) do |json|
         data = Oj.load(json, symbol_keys: true)
-        expect(data[:args]).to include('tickers.ETHUSDT', 'tickers.BTCUSDT')
+        expect(data[:op]).to eq('subscribe')
+        expect(data[:args]).to match_array(%w[tickers.ETHUSDT tickers.BTCUSDT])
       end
     end
   end
@@ -216,7 +211,7 @@ RSpec.describe Bybit::WebsocketListener do
 
   describe 'DCP registration' do
     it 'registers DCP via REST client and stores timestamp in Redis' do
-      account = instance_double(ExchangeAccount, api_key: 'key', api_secret: 'secret')
+      account = instance_double(ExchangeAccount, api_key: 'key', api_secret: 'secret', environment: 'testnet')
       client = instance_double(Bybit::RestClient)
       allow(Bybit::RestClient).to receive(:new).and_return(client)
       allow(client).to receive(:set_dcp).and_return(

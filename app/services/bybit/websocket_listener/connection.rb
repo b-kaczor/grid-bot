@@ -7,19 +7,38 @@ module Bybit
         account = ExchangeAccount.first
         return unless account
 
-        url = ENV.fetch('BYBIT_WS_URL') { Bybit::Urls.for(account.environment)[:ws_private] }
-        endpoint = Async::HTTP::Endpoint.parse(url, alpn_protocols: Async::HTTP::Protocol::HTTP11.names)
+        urls = Bybit::Urls.for(account.environment)
+        private_url = ENV.fetch('BYBIT_WS_URL') { urls[:ws_private] }
+        public_url = urls[:ws_public]
 
+        public_task = start_public_connection(public_url, parent_task)
+        start_private_connection(private_url, account, parent_task)
+      ensure
+        public_task&.stop
+      end
+
+      def start_private_connection(url, account, parent_task)
+        endpoint = ws_endpoint(url)
         Async::WebSocket::Client.connect(endpoint) do |ws|
-          setup_connection(ws, account)
+          authenticate(ws, account)
+          subscribe_private(ws)
+          register_dcp(account)
           run_with_heartbeat(ws, parent_task)
         end
       end
 
-      def setup_connection(connection, account)
-        authenticate(connection, account)
-        subscribe(connection)
-        register_dcp(account)
+      def start_public_connection(url, parent_task)
+        pairs = Bot.running.pluck(:pair).uniq
+        return if pairs.empty?
+
+        parent_task.async do
+          Async::WebSocket::Client.connect(ws_endpoint(url)) do |ws|
+            subscribe_public(ws, pairs)
+            run_with_heartbeat(ws, parent_task)
+          end
+        rescue StandardError => e
+          Rails.logger.error("[WS] Public connection error: #{e.message}")
+        end
       end
 
       def run_with_heartbeat(connection, parent_task)
@@ -35,6 +54,7 @@ module Bybit
             break if @shutdown
 
             sleep HEARTBEAT_INTERVAL
+            Rails.logger.info('[WS] Heartbeat message sent')
             connection.send_text(Oj.dump({ op: 'ping' }))
           end
         end
@@ -48,11 +68,20 @@ module Bybit
         Rails.logger.info('[WS] Authentication message sent')
       end
 
-      def subscribe(connection)
-        topics = %w[order.spot execution.spot wallet dcp]
-        Bot.running.pluck(:pair).uniq.each { |pair| topics << "tickers.#{pair}" }
+      def subscribe_private(connection)
+        topics = %w[order.spot execution.spot wallet]
         connection.send_text(Oj.dump({ op: 'subscribe', args: topics }))
-        Rails.logger.info("[WS] Subscribed to: #{topics.join(', ')}")
+        Rails.logger.info("[WS] Private subscribed to: #{topics.join(', ')}")
+      end
+
+      def subscribe_public(connection, pairs)
+        topics = pairs.map { |pair| "tickers.#{pair}" }
+        connection.send_text(Oj.dump({ op: 'subscribe', args: topics }))
+        Rails.logger.info("[WS] Public subscribed to: #{topics.join(', ')}")
+      end
+
+      def ws_endpoint(url)
+        Async::HTTP::Endpoint.parse(url, alpn_protocols: Async::HTTP::Protocol::HTTP11.names)
       end
 
       def register_dcp(account)
@@ -69,12 +98,8 @@ module Bybit
         end
       end
 
-      def dcp_client(account)
-        Bybit::RestClient.new(
-          api_key: account.api_key,
-          api_secret: account.api_secret,
-          environment: account.environment
-        )
+      def dcp_client(acct)
+        Bybit::RestClient.new(api_key: acct.api_key, api_secret: acct.api_secret, environment: acct.environment)
       end
 
       def read_loop(connection, parent_task)
@@ -84,18 +109,17 @@ module Bybit
           message = parent_task.with_timeout(WS_READ_TIMEOUT) { connection.read }
           break unless message
 
-          data = Oj.load(message.buffer, symbol_keys: true)
-          process_message(data)
+          process_ws_message(message)
         end
-
-        graceful_shutdown(connection) if @shutdown
-      end
-
-      def graceful_shutdown(connection)
-        Rails.logger.info('[WS] Graceful shutdown initiated')
-        connection.send_close
+        connection.send_close if @shutdown
       rescue StandardError => e
         Rails.logger.warn("[WS] Error during shutdown: #{e.message}")
+      end
+
+      def process_ws_message(message)
+        data = Oj.load(message.buffer, symbol_keys: true)
+        Rails.logger.info("[WS] Message processed: #{data}")
+        process_message(data)
       end
     end
   end
