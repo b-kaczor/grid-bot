@@ -38,6 +38,8 @@ group :development, :test do
   gem 'annotaterb', '~> 4.0'
   gem 'debug', platforms: %i[mri windows]
   gem 'factory_bot_rails', '~> 6.0'
+  gem 'pry'
+  gem 'pry-rails'
   gem 'rspec-rails', '~> 7.0'
   gem 'rubocop', require: false
   gem 'rubocop-capybara', require: false

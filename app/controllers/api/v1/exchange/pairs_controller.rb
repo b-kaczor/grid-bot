@@ -41,7 +41,7 @@ module Api
         end
 
         def build_ticker_map(tickers)
-          tickers.to_h { |t| [t[:symbol], t[:lastPrice]] }
+          tickers.to_h { |t| [t[:symbol], t[:usdIndexPrice] || t[:lastPrice]] }
         end
 
         def build_pair(instrument, ticker_map)
