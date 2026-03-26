@@ -35,7 +35,7 @@ export interface GridLevel {
   level_index: number;
   price: string;
   expected_side: 'buy' | 'sell';
-  status: 'pending' | 'active' | 'filled' | 'skipped';
+  status: 'pending' | 'active' | 'filled' | 'skipped' | 'error';
   cycle_count: number;
 }
 

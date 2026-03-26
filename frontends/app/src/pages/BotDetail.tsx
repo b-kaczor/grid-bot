@@ -15,6 +15,7 @@ import { useBotChannel } from '../cable/useBotChannel.ts';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 import { ConnectionBanner } from '../components/ConnectionBanner.tsx';
 import { TradeHistoryTable } from '../components/TradeHistoryTable.tsx';
+import { OrderHistoryTable } from '../components/OrderHistoryTable.tsx';
 import { GridVisualization } from '../components/GridVisualization.tsx';
 import { PerformanceCharts } from '../components/PerformanceCharts.tsx';
 import { RiskSettingsCard } from '../components/RiskSettingsCard.tsx';
@@ -250,8 +251,14 @@ export const BotDetail = () => {
             </Grid>
           </Grid>
 
-          {/* Trade History */}
+          {/* Filled Orders */}
           <Typography variant="h6" sx={{ mb: 2 }}>
+            Filled Orders
+          </Typography>
+          <OrderHistoryTable botId={botId} />
+
+          {/* Trade History */}
+          <Typography variant="h6" sx={{ mb: 2, mt: 3 }}>
             Trade History
           </Typography>
           <TradeHistoryTable botId={botId} />

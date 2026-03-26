@@ -21,6 +21,7 @@ Rails.application.routes.draw do
       resources :bots, only: %i[index show create update destroy] do
         resource :grid, only: [:show], controller: 'bots/grid'
         resources :trades, only: [:index], controller: 'bots/trades'
+        resources :orders, only: [:index], controller: 'bots/orders'
         resource :chart, only: [:show], controller: 'bots/chart'
       end
 

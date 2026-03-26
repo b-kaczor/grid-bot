@@ -38,7 +38,6 @@ RSpec.describe Grid::Initializer do
     stub_ticker
     stub_wallet_balance
     stub_place_order
-    stub_set_dcp
     stub_cancel_order
   end
 
@@ -93,11 +92,6 @@ RSpec.describe Grid::Initializer do
         expect(redis_state).to have_received(:seed)
       end
 
-      it 'registers DCP with 40s window after transitioning to running' do
-        initializer.call
-        expect(client).to have_received(:set_dcp).with(time_window: 40)
-      end
-
       it 'returns the bot' do
         result = initializer.call
         expect(result).to eq(bot)
@@ -117,25 +111,6 @@ RSpec.describe Grid::Initializer do
         order = bot.orders.first
         match = order.order_link_id.match(described_class::ORDER_LINK_ID_PATTERN)
         expect(match[1].to_i).to eq(bot.id)
-      end
-    end
-
-    context 'when DCP registration fails' do
-      before do
-        allow(client).to receive(:set_dcp).and_return(
-          Exchange::Response.new(success: false, error_message: 'DCP not available')
-        )
-      end
-
-      it 'still transitions to running (non-fatal)' do
-        initializer.call
-        expect(bot.reload.status).to eq('running')
-      end
-
-      it 'logs a warning' do
-        allow(Rails.logger).to receive(:warn)
-        initializer.call
-        expect(Rails.logger).to have_received(:warn).with(/DCP registration failed/)
       end
     end
 
@@ -400,12 +375,6 @@ RSpec.describe Grid::Initializer do
 
       Exchange::Response.new(success: false, error_code: '170213', error_message: 'Test failure')
     end
-  end
-
-  def stub_set_dcp
-    allow(client).to receive(:set_dcp).and_return(
-      Exchange::Response.new(success: true, data: {})
-    )
   end
 
   def stub_cancel_order

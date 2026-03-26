@@ -34,7 +34,6 @@ module Grid
       place_orders_in_batches(grid_levels, classification, qty)
 
       transition_to!('running')
-      register_dcp!
       seed_redis
       kick_off_reconciliation
     rescue StandardError => e
@@ -239,15 +238,6 @@ module Grid
     def generate_order_link_id(grid_level, side)
       side_char = side == :buy ? 'B' : 'S'
       "g#{@bot.id}-L#{grid_level.level_index}-#{side_char}-#{grid_level.cycle_count}"
-    end
-
-    def register_dcp!
-      response = @client.set_dcp(time_window: 40)
-      if response.success?
-        Rails.logger.info("[Initializer] DCP registered with 40s window for bot #{@bot.id}")
-      else
-        Rails.logger.warn("[Initializer] DCP registration failed: #{response.error_message}")
-      end
     end
 
     def seed_redis

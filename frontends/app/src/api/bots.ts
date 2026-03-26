@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from './client.ts';
 import type { Bot, BotDetail, CreateBotParams, GridData } from '../types/bot.ts';
 import type { PaginatedTrades } from '../types/trade.ts';
+import type { PaginatedOrders } from '../types/order.ts';
 
 interface ChartSnapshot {
   snapshot_at: string;
@@ -44,6 +45,13 @@ export const useBotTrades = (id: number, page: number) =>
     queryKey: ['bots', id, 'trades', page],
     queryFn: () =>
       apiClient.get(`/bots/${id}/trades`, { params: { page } }).then((r) => r.data),
+  });
+
+export const useBotOrders = (id: number, page: number) =>
+  useQuery<PaginatedOrders>({
+    queryKey: ['bots', id, 'orders', page],
+    queryFn: () =>
+      apiClient.get(`/bots/${id}/orders`, { params: { page } }).then((r) => r.data),
   });
 
 export const useBotChart = (id: number) =>
