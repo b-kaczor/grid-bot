@@ -124,6 +124,11 @@ module Grid
       return unless deficit.positive?
 
       buy_qty = @bot.base_precision ? deficit.ceil(@bot.base_precision) : deficit
+      if @bot.min_order_amt.present?
+        estimated_value = buy_qty * fetch_current_price!
+        return if estimated_value < BigDecimal(@bot.min_order_amt.to_s)
+      end
+
       market_response = @client.place_order(
         symbol: @bot.pair,
         side: 'Buy',

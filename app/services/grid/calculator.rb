@@ -51,10 +51,10 @@ module Grid
       price = BigDecimal(current_price.to_s)
       classification = classify_levels(current_price: price)
 
-      buy_count = classification.count { |_, side| side == :buy }
-      raise ValidationError, 'No buy levels found' if buy_count.zero?
+      active_count = classification.count { |_, side| side != :skip }
+      raise ValidationError, 'No active levels found' if active_count.zero?
 
-      qty = inv / buy_count / price
+      qty = inv / active_count / price
       base_precision ? qty.truncate(base_precision) : qty
     end
 

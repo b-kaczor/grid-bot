@@ -197,23 +197,34 @@ RSpec.describe Grid::Calculator do
       expect(qty).to be_a(BigDecimal)
     end
 
-    it 'calculates correctly: investment / buy_count / current_price' do
-      # At price 2500, with step 100, levels 0-4 are buy (2000-2400), level 5 is skip (2500)
-      # buy_count = 5
+    it 'calculates correctly: investment / active_count / current_price' do
+      # At price 2500, with step 100:
+      # levels 0-4 are buy (2000-2400), level 5 is skip (2500), levels 6-10 are sell (2600-3000)
+      # active_count = 10 (5 buy + 5 sell)
       qty = calc.quantity_per_level(investment: 1000, current_price: 2500)
-      expected = BigDecimal('1000') / 5 / BigDecimal('2500')
+      expected = BigDecimal('1000') / 10 / BigDecimal('2500')
       expect(qty).to eq(expected.truncate(6))
     end
 
     it 'truncates to base_precision (not rounds)' do
-      # Verify truncation: 0.0800000 truncated to 6 should be 0.080000
       qty = calc.quantity_per_level(investment: 1000, current_price: 2500)
-      expect(qty).to eq(BigDecimal('0.08').truncate(6))
+      expect(qty).to eq(BigDecimal('0.04').truncate(6))
     end
 
-    it 'raises when no buy levels exist' do
-      expect { calc.quantity_per_level(investment: 1000, current_price: 1000) }
-        .to raise_error(Grid::Calculator::ValidationError, /No buy levels/)
+    it 'raises when no active levels exist' do
+      # Single level at exactly the current price falls in the neutral zone
+      calc = described_class.new(lower: 2500, upper: 2500, count: 1, spacing: :arithmetic, base_precision: 6)
+      expect { calc.quantity_per_level(investment: 1000, current_price: 2500) }
+        .to raise_error(Grid::Calculator::ValidationError, /No active levels/)
+    end
+
+    it 'budgets for both buy and sell sides' do
+      # investment=10000, price=2070, lower=2050, upper=2095, count=7
+      # 3 buy + 4 sell + 1 skip = 7 active
+      calc = described_class.new(lower: 2050, upper: 2095, count: 7, spacing: :arithmetic, base_precision: 8)
+      qty = calc.quantity_per_level(investment: 10_000, current_price: 2070)
+      total_cost = 7 * qty * BigDecimal('2070')
+      expect(total_cost).to be <= BigDecimal('10000')
     end
 
     context 'without base_precision' do
@@ -223,7 +234,7 @@ RSpec.describe Grid::Calculator do
 
       it 'returns untruncated quantity' do
         qty = calc.quantity_per_level(investment: 1000, current_price: 2500)
-        expect(qty).to eq(BigDecimal('1000') / 5 / BigDecimal('2500'))
+        expect(qty).to eq(BigDecimal('1000') / 10 / BigDecimal('2500'))
       end
     end
   end
