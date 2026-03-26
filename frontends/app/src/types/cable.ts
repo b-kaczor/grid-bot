@@ -4,6 +4,7 @@ import type { Trade } from './trade.ts';
 export interface FillEvent {
   type: 'fill';
   grid_level: GridLevel;
+  counter_level: GridLevel | null;
   trade: Trade | null;
   realized_profit: string;
   trade_count: number;

@@ -36,27 +36,28 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
 
     bot = order.bot
     client = Bybit::RestClient.new(exchange_account: bot.exchange_account)
-    trade = process_fill_transaction(order, order_data, bot, client)
-    post_fill_updates(bot, order, trade)
+    trade, counter_level = process_fill_transaction(order, order_data, bot, client)
+    post_fill_updates(bot, order, trade, counter_level)
   end
 
   def process_fill_transaction(order, order_data, bot, client)
     trade = nil
+    counter_level = nil
     ActiveRecord::Base.transaction do
       grid_level = order.grid_level
       grid_level.lock!
       update_order!(order, order_data, bot)
       grid_level.update!(status: 'filled')
-      trade = handle_fill(order, grid_level, bot, client)
+      trade, counter_level = handle_fill(order, grid_level, bot, client)
     end
-    trade
+    [trade, counter_level]
   end
 
-  def post_fill_updates(bot, order, trade)
+  def post_fill_updates(bot, order, trade, counter_level)
     redis_state = Grid::RedisState.new
     grid_level = order.grid_level.reload
-    redis_state.update_on_fill(bot, grid_level, trade)
-    broadcast_fill(bot, grid_level, trade, redis_state)
+    redis_state.update_on_fill(bot, grid_level, trade, counter_level:)
+    broadcast_fill(bot, grid_level, trade, redis_state, counter_level)
     check_risk(bot, order.avg_fill_price)
   end
 
@@ -114,12 +115,12 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
   def handle_fill(order, grid_level, bot, client)
     if bot.status.in?(%w[stopping stopped])
       Rails.logger.info("[Fill] Bot #{bot.id} is #{bot.status}, skipping counter-order")
-      return nil
+      return [nil, nil]
     end
 
     if order.side == 'buy'
-      handle_buy_fill(order, grid_level, bot, client)
-      nil
+      counter_level = handle_buy_fill(order, grid_level, bot, client)
+      [nil, counter_level]
     else
       handle_sell_fill(order, grid_level, bot, client)
     end
@@ -131,7 +132,7 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
 
     unless sell_level
       Rails.logger.warn("[Fill] No sell level above #{grid_level.level_index} for bot #{bot.id}")
-      return
+      return nil
     end
 
     place_counter_order(
@@ -139,17 +140,19 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
       qty: order.net_quantity.truncate(bot.base_precision || 8),
       paired_order: order
     )
+    sell_level.reload
   end
 
   def handle_sell_fill(order, grid_level, bot, client)
     if try_trailing(bot, grid_level, client)
-      return record_trade(order, grid_level, bot)
+      return [record_trade(order, grid_level, bot), nil]
     end
 
-    return unless place_counter_buy(order, grid_level, bot, client)
+    counter_level = place_counter_buy(order, grid_level, bot, client)
+    return [nil, nil] unless counter_level
 
     grid_level.update!(cycle_count: grid_level.cycle_count + 1)
-    record_trade(order, grid_level, bot)
+    [record_trade(order, grid_level, bot), counter_level]
   end
 
   def place_counter_buy(order, grid_level, bot, client)
@@ -157,13 +160,14 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
 
     unless buy_level
       Rails.logger.warn("[Fill] No buy level below #{grid_level.level_index} for bot #{bot.id}")
-      return false
+      return nil
     end
 
     buy_qty = bot.quantity_per_level
     raise "Bot #{bot.id} has no quantity_per_level set" unless buy_qty
 
     place_counter_order(bot:, client:, level: buy_level, side: 'buy', qty: buy_qty, paired_order: order)
+    buy_level.reload
   end
 
   def try_trailing(bot, grid_level, client)
@@ -265,12 +269,13 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
     Rails.logger.error("[Fill] Risk check failed for bot #{bot.id}: #{e.message}")
   end
 
-  def broadcast_fill(bot, grid_level, trade, redis_state)
+  def broadcast_fill(bot, grid_level, trade, redis_state, counter_level)
     stats = redis_state.read_stats(bot.id)
     ActionCable.server.broadcast(
       "bot_#{bot.id}", {
         type: 'fill',
         grid_level: serialize_grid_level(grid_level),
+        counter_level: counter_level ? serialize_grid_level(counter_level) : nil,
         trade: trade ? serialize_trade(trade) : nil,
         realized_profit: stats['realized_profit'] || '0',
         trade_count: (stats['trade_count'] || '0').to_i,

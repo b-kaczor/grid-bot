@@ -11,12 +11,9 @@ const LABEL_WIDTH = 90;
 const BADGE_WIDTH = 40;
 
 const levelColor = (level: GridLevel): string => {
-  if (level.status === 'filled' || level.status === 'pending') return '#555';
+  if (level.status !== 'active') return '#555';
   return level.expected_side === 'buy' ? '#4caf50' : '#f44336';
 };
-
-const levelOpacity = (level: GridLevel): number =>
-  level.status === 'active' ? 1 : 0.4;
 
 export const GridVisualization = ({ botId }: GridVisualizationProps) => {
   const { data: grid, isLoading } = useBotGrid(botId);
@@ -77,7 +74,6 @@ export const GridVisualization = ({ botId }: GridVisualizationProps) => {
                 height: 12,
                 borderRadius: 1,
                 backgroundColor: levelColor(level),
-                opacity: levelOpacity(level),
                 mx: 1,
               }}
             />

@@ -101,7 +101,7 @@ RSpec.describe OrderFillWorker do
 
       it 'updates Redis hot state' do
         worker.perform(Oj.dump(fill_data(buy_order)))
-        expect(redis_state).to have_received(:update_on_fill).with(bot, buy_level, nil)
+        expect(redis_state).to have_received(:update_on_fill).with(bot, buy_level, nil, counter_level: sell_level)
       end
 
       it 'broadcasts fill event via ActionCable' do

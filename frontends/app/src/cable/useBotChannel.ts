@@ -41,9 +41,12 @@ export const useBotChannel = (botId: number) => {
               if (!grid) return old;
               return {
                 ...grid,
-                levels: grid.levels.map((l) =>
-                  l.level_index === event.grid_level.level_index ? event.grid_level : l,
-                ),
+                levels: grid.levels.map((l) => {
+                  if (l.level_index === event.grid_level.level_index) return event.grid_level;
+                  if (event.counter_level && l.level_index === event.counter_level.level_index)
+                    return event.counter_level;
+                  return l;
+                }),
               };
             });
             qc.invalidateQueries({ queryKey: ['bots', botId, 'trades'] });

@@ -19,10 +19,13 @@ module Grid
       end
     end
 
-    def update_on_fill(bot, grid_level, trade = nil)
+    def update_on_fill(bot, grid_level, trade = nil, counter_level: nil)
       bot_id = bot.id
       @redis.pipelined do |pipe|
         pipe.hset(key(bot_id, :levels), grid_level.level_index.to_s, level_json(grid_level))
+        if counter_level
+          pipe.hset(key(bot_id, :levels), counter_level.level_index.to_s, level_json(counter_level))
+        end
         if trade
           pipe.hincrby(key(bot_id, :stats), 'trade_count', 1)
           pipe.hset(key(bot_id, :stats), 'realized_profit', bot.trades.sum(:net_profit).to_s)
