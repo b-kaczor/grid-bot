@@ -190,7 +190,12 @@ class OrderFillWorker # rubocop:disable Metrics/ClassLength
     if response.success?
       create_counter_order_records(bot, level, side, qty, link_id, response, paired_order)
     else
-      Rails.logger.error("[Fill] Failed to place #{side} counter-order: #{response.error_message}")
+      Rails.logger.error(
+        "[Fill] Failed to place #{side} counter-order for bot #{bot.id} " \
+        "level #{level.level_index} (#{level.price}): " \
+        "[#{response.error_code}] #{response.error_message}"
+      )
+      level.update!(status: 'error')
     end
   end
 

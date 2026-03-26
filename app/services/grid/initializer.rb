@@ -52,6 +52,11 @@ module Grid
 
     def transition_to!(status)
       @bot.update!(status:)
+      broadcast_status(status)
+    end
+
+    def broadcast_status(status)
+      ActionCable.server.broadcast("bot_#{@bot.id}", { type: 'status', status: })
     end
 
     def fetch_and_store_instrument_info! # rubocop:disable Metrics/AbcSize
@@ -162,6 +167,10 @@ module Grid
         if response.success? && response.data[:orderId].present?
           record_successful_order(gl, response.data.merge(orderLinkId: link_id))
         else
+          Rails.logger.error(
+            "[Initializer] Order failed for bot #{@bot.id} level #{gl.level_index} " \
+            "(#{side}/#{gl.price}): [#{response.error_code}] #{response.error_message}"
+          )
           failure_details << { code: response.error_code, msg: response.error_message, level: gl.level_index }
           failed_count += 1
         end

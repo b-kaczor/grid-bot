@@ -32,7 +32,7 @@ class GridLevel < ApplicationRecord
   has_many :trades, dependent: :destroy
 
   SIDES = %w[buy sell].freeze
-  STATUSES = %w[pending active filled skipped].freeze
+  STATUSES = %w[pending active filled skipped error].freeze
 
   validates :level_index, presence: true,
                           numericality: { greater_than_or_equal_to: 0, only_integer: true },

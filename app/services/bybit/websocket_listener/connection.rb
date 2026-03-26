@@ -109,17 +109,12 @@ module Bybit
           message = parent_task.with_timeout(WS_READ_TIMEOUT) { connection.read }
           break unless message
 
-          process_ws_message(message)
+          data = Oj.load(message.buffer, symbol_keys: true)
+          process_message(data)
         end
         connection.send_close if @shutdown
       rescue StandardError => e
         Rails.logger.warn("[WS] Error during shutdown: #{e.message}")
-      end
-
-      def process_ws_message(message)
-        data = Oj.load(message.buffer, symbol_keys: true)
-        Rails.logger.info("[WS] Message processed: #{data}")
-        process_message(data)
       end
     end
   end

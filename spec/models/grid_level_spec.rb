@@ -56,7 +56,7 @@ RSpec.describe GridLevel, type: :model do
     end
 
     it 'defines STATUSES' do
-      expect(GridLevel::STATUSES).to eq(%w[pending active filled skipped])
+      expect(GridLevel::STATUSES).to eq(%w[pending active filled skipped error])
     end
   end
 end

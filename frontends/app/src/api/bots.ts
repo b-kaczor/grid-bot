@@ -27,6 +27,10 @@ export const useBot = (id: number) =>
   useQuery<BotDetail>({
     queryKey: ['bots', id],
     queryFn: () => apiClient.get(`/bots/${id}`).then((r) => r.data.bot),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'initializing' || status === 'stopping' ? 3_000 : false;
+    },
   });
 
 export const useBotGrid = (id: number) =>
